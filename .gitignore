@@ -1,0 +1,31 @@
+# ignore
+**/.idea
+**/.vscode
+**/.DS_Store
+.cursor
+
+# Rust build artifacts (all crates)
+target/
+**/target/
+
+# Local binaries / packaging output
+**/dist/
+
+# rsctl local temp dirs / generated outputs
+rsctl/.cargo/
+rsctl/.tmp/
+rsctl/test/out/
+rsctl/test/out_actix/
+rsctl/utils/tests/
+
+# rsctl test dir: keep only the example api file in repo
+rsctl/test/*
+!rsctl/test/api.api
+go-zero
+axum/.*
+axum
+.idea
+
+rest/examples/bench_out
+/axum/.idea
+git

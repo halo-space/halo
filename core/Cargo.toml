@@ -1,0 +1,23 @@
+[package]
+name = "halo-core"
+version = "0.1.0"
+edition = "2024"
+description = "halo core（配置/服务基础能力）"
+license = "Apache-2.0"
+repository = "https://github.com/halo-space/halo.git"
+readme = "../README.md"
+
+[lib]
+# 注意：本项目选择直接使用 crate 名 `core`。
+# 这样在其它 crate 中可以通过 `core::...` 引用本项目的 core。
+# 如需访问标准库对应能力，优先使用 `std::...`，必要时在本 crate 内做封装。
+name = "core"
+
+[dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+serde_json = "1"
+toml = "0.8"
+
+

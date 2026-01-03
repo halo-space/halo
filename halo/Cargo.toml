@@ -1,0 +1,23 @@
+[package]
+# crates.io 上的 package 名：halo-micro
+name = "halo-micro"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "halo facade crate（对外统一入口：halo::core / halo::rest）"
+
+[lib]
+# 对外 crate 名固定为 halo
+name = "halo"
+path = "lib.rs"
+
+[features]
+default = []
+
+[dependencies]
+core = { package = "halo-core", version = "0.1.0", path = "../core" }
+rest = { package = "halo-rest", version = "0.1.0", path = "../rest" }
+
+

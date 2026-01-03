@@ -1,0 +1,31 @@
+[package]
+name = "halo-utils"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "halo utils（通用工具库：模板渲染/路径/模板安装与查找）"
+
+[lib]
+name = "utils"
+path = "src/lib.rs"
+
+[features]
+# utils 被多个 crate 复用：rsctl 需要模板相关能力；rest 可能只需要 jwt 能力。
+default = ["template"]
+template = ["dep:include_dir", "dep:minijinja", "dep:serde_json"]
+jwt = ["dep:jsonwebtoken", "dep:serde", "dep:serde_json"]
+
+[dependencies]
+anyhow.workspace = true
+include_dir = { version = "0.7", optional = true }
+minijinja = { version = "2", optional = true, features = ["builtins", "json"] }
+serde_json = { version = "1", optional = true }
+serde = { workspace = true, optional = true }
+jsonwebtoken = { version = "9", optional = true }
+
+[dev-dependencies]
+serde_json = "1"
+
+

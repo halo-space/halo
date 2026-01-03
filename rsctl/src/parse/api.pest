@@ -1,0 +1,104 @@
+// =========
+// 词法/空白
+// =========
+// 注意：规则名为 `WHITESPACE` 会触发 pest 的“自动跳过空白”机制。
+// 因此语法规则里一般不需要再显式写 WHITESPACE/NEWLINE（否则容易造成匹配冲突/失败）。
+WHITESPACE = _{ " " | "\t" | NEWLINE | COMMENT }
+// 换行：兼容 \n 与 Windows 的 \r\n
+NEWLINE = _{ "\r\n" | "\n" }
+// 单行注释：// ... 到行末（也会被当做空白跳过）
+COMMENT = _{ "//" ~ (!NEWLINE ~ ANY)* }
+
+// =========
+// 基础 token
+// =========
+// 标识符：用于 annotation 名称、service 名称、kv 的 key 等
+ident = @{ (ASCII_ALPHANUMERIC | "_" | "-")+ }
+
+// 字符串：双引号包裹，支持 \" 转义
+string = @{ "\"" ~ ( "\\\"" | !("\"") ~ ANY )* ~ "\"" }
+// duration：如 3s/500ms/2m/1h（用于 timeout: 3s 这种）
+duration = @{ ASCII_DIGIT+ ~ ("ms" | "s" | "m" | "h") }
+// 路径：以 / 开头，允许 :id 这样的参数段（如 /user/info/:id）
+path = @{ "/" ~ (ASCII_ALPHANUMERIC | "_" | "-" | "/" | ":" )* }
+// bare：不带引号的值（如 Auth、bar、foo.bar）
+bare = @{ (ASCII_ALPHANUMERIC | "_" | "-" | "." )+ }
+// value：kv 的值类型（字符串/时长/路径/裸值）
+value = _{ string | duration | path | bare }
+
+// =========
+// 顶层结构
+// =========
+// 一个 .api 文件由若干 statement 组成
+file = { SOI ~ stmt* ~ EOI }
+
+// 顶层语句：import、注解、service 块、或单独的 route（无 service 时）
+stmt = _{ syntax_stmt | info_block | import_stmt | type_group_block | type_block | annotation_stmt | service_block | route_stmt }
+
+// =========
+// goctl 风格：syntax/info/type
+// =========
+syntax_stmt = { "syntax" ~ "=" ~ string }
+
+// info ( key: value ... )
+info_block = { "info" ~ "(" ~ kv_list? ~ ")" }
+
+// import foo.api
+import_stmt = { "import" ~ value }
+
+// type Xxx { Field Type `tag:"v",validate:"..."` }
+type_block = { "type" ~ ident ~ "{" ~ field_stmt* ~ "}" }
+field_stmt = { ident ~ type_ref ~ tag? }
+
+// goctl 风格：type ( Xxx {...} Yyy {...} )
+type_group_block = { "type" ~ "(" ~ type_group_item* ~ ")" }
+type_group_item = { ident ~ "{" ~ field_stmt* ~ "}" }
+
+// raw tag inside backticks
+tag = @{ "`" ~ (!"`" ~ ANY)* ~ "`" }
+
+// =========
+// 注解（@server/@doc/@handler...）
+// =========
+// 注解语句本体：@xxx...
+annotation_stmt = { annotation }
+// 注解：@ + name + 可选参数
+annotation = { "@" ~ ident ~ annotation_args? }
+// 注解参数：
+// - 单字符串：@doc "foo"
+// - 括号 kv：@server ( prefix: /v1 group: Foo )
+// - 空括号：@server()
+// 注解参数：
+// - 单值：@doc "foo" / @handler login
+// - 括号 kv：@server ( prefix: /v1 group: Foo )
+// - 空括号：@server()
+annotation_args = { value | "(" ~ kv_list? ~ ")" }
+// kv 列表：若干 kv，以空白分隔（允许换行）
+kv_list = { kv ~ kv* }
+// kv：key: value
+kv = { ident ~ ":" ~ value }
+
+// =========
+// service 块
+// =========
+// service user { ... }
+// 注意：service 内同样可以出现注解与 route
+service_block = { "service" ~ ident ~ "{" ~ service_item* ~ "}" }
+service_item = _{ annotation_stmt | route_stmt }
+
+// =========
+// 路由定义
+// =========
+// 支持形式：
+// - get /ping
+// - get /foo (Req)
+// - post /foo returns (Resp)
+// - post /foo (Req) returns (Resp)
+method = { "get" | "post" | "put" | "delete" | "patch" }
+type_ref = { "[]"* ~ ident }
+request_part = { "(" ~ type_ref ~ ")" }
+response_part = { "returns" ~ "(" ~ type_ref ~ ")" }
+
+route_stmt = { method ~ path ~ request_part? ~ response_part? }
+
+
