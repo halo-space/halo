@@ -14,9 +14,10 @@ usage() {
 发布 halo workspace 到 crates.io 的标准脚本。
 
 默认发布顺序：
-  1) halo-core
-  2) halo-rest
-  3) halo-micro（lib crate 名为 halo_micro；使用方依赖写 halo_micro = { package = "halo-micro", ... }）
+  1) halo-macros（proc-macro crate）
+  2) halo-core
+  3) halo-rest
+  4) halo-micro（lib crate 名为 halo_micro；使用方依赖写 halo_micro = { package = "halo-micro", ... }）
 
 用法：
   ./scripts/publish_crates_io.sh [--dry-run] [--allow-dirty] [--skip-checks] [--registry crates-io]
@@ -69,16 +70,18 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-extra_flags=()
+declare -a extra_flags=()
+declare -a publish_flags=()
 if [[ "${ALLOW_DIRTY}" -eq 1 ]]; then
   extra_flags+=(--allow-dirty)
+  publish_flags+=(--allow-dirty)
 fi
-publish_flags=("${extra_flags[@]}")
 if [[ "${DRY_RUN}" -eq 1 ]]; then
   publish_flags+=(--dry-run)
 fi
 
 packages=(
+  "halo-macros"
   "halo-core"
   "halo-rest"
   "halo-micro"
@@ -97,14 +100,22 @@ if [[ "${SKIP_CHECKS}" -eq 0 ]]; then
 
   echo "==> 预检：cargo package（仅打包检查，提前发现发布问题）"
   for pkg in "${packages[@]}"; do
-    cargo package -p "${pkg}" "${extra_flags[@]}"
+    if [[ ${#extra_flags[@]} -gt 0 ]]; then
+      cargo package -p "${pkg}" "${extra_flags[@]}"
+    else
+      cargo package -p "${pkg}"
+    fi
   done
 fi
 
 echo "==> 发布到 crates.io"
 for pkg in "${packages[@]}"; do
   echo "==> cargo publish -p ${pkg}"
-  cargo publish -p "${pkg}" --registry "${REGISTRY}" "${publish_flags[@]}"
+  if [[ ${#publish_flags[@]} -gt 0 ]]; then
+    cargo publish -p "${pkg}" --registry "${REGISTRY}" "${publish_flags[@]}"
+  else
+    cargo publish -p "${pkg}" --registry "${REGISTRY}"
+  fi
 done
 
 echo "==> 完成"

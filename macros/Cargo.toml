@@ -1,8 +1,11 @@
 [package]
-name = "macros"
+name = "halo-macros"
 version = "0.1.0"
 edition = "2024"
 description = "Procedural macros for halo-rest (e.g., #[handler])"
+license = "Apache-2.0"
+repository = "https://github.com/halo-space/halo.git"
+readme = "../README.md"
 
 [lib]
 proc-macro = true
