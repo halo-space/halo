@@ -108,9 +108,9 @@ impl Server {
     where
         I: IntoIterator<Item = Route>,
     {
-        let mut routes_vec: Vec<Route> = routes.into_iter().collect();
+        let routes_vec: Vec<Route> = routes.into_iter().collect();
         let group_prefix = self.current_group_label();
-        let routes = self.apply_prefixes(routes_vec.drain(..).collect());
+        let routes = self.apply_prefixes(routes_vec);
         for r in &routes {
             self.debug_routes
                 .push((group_prefix.clone(), r.method.to_string(), r.path.clone()));
@@ -217,7 +217,6 @@ impl Server {
     }
 
     /// Deprecated aliases removed to keep pure Rust naming.
-
     /// Start HTTP server and return controllable handle.
     pub async fn start(self) -> anyhow::Result<ServerHandle> {
         self.debug_print_routes();

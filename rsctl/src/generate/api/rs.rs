@@ -183,9 +183,7 @@ pub mod shared {
             files.push(Artifact {
                 rel_path: format!("etc/{}.yaml", self.service_name).into(),
                 content: {
-                    let c = render::render(&self.templates.etc, &self.base_ctx)
-                        .context("render etc.tpl")?;
-                    c
+                    render::render(&self.templates.etc, &self.base_ctx).context("render etc.tpl")?
                 },
             });
             Ok(())
@@ -247,7 +245,7 @@ pub mod shared {
             let imports = if mws.is_empty() {
                 "".to_string()
             } else {
-                "use halo::rest::Middleware;".to_string()
+                "use halo_micro::rest::Middleware;".to_string()
             };
             files.push(Artifact {
                 rel_path: "svc.rs".into(),
@@ -492,7 +490,7 @@ pub mod shared {
                     rel_path: format!("middleware/{name_snake}.rs").into(),
                     content: {
                         let imports = [
-                            "use halo::rest::{self, HandlerFunc, Middleware};",
+                            "use halo_micro::rest::{self, HandlerFunc, Middleware};",
                             "use hyper::Body;",
                             "use http::Request;",
                         ]
@@ -567,7 +565,7 @@ pub mod shared {
         fn handlers(&self, files: &mut Vec<Artifact>) -> Result<()> {
             use serde_json::Value;
 
-            fn root_ident<'a>(t: &'a crate::spec::api::Type) -> Option<&'a str> {
+            fn root_ident(t: &crate::spec::api::Type) -> Option<&str> {
                 match t {
                     crate::spec::api::Type::Ident(s) => Some(s.as_str()),
                     crate::spec::api::Type::Array(inner)
@@ -642,20 +640,21 @@ pub mod shared {
                 } else {
                     String::new()
                 };
-                let ok_resp_fmt = "halo::rest::http::ok_json(&{RESP}).unwrap_or_else(|e| halo::rest::http::error(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))".to_string();
-                let ok_no_resp_fmt = "halo::rest::http::ok()".to_string();
+                let ok_resp_fmt = "halo_micro::rest::http::ok_json(&{RESP}).unwrap_or_else(|e| halo_micro::rest::http::error(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))".to_string();
+                let ok_no_resp_fmt = "halo_micro::rest::http::ok()".to_string();
                 let err_fmt =
-                    "halo::rest::http::error(StatusCode::INTERNAL_SERVER_ERROR, {E}.to_string())"
+                    "halo_micro::rest::http::error(StatusCode::INTERNAL_SERVER_ERROR, {E}.to_string())"
                         .to_string();
-                let bad_request_fmt = "halo::rest::http::bad_request({E}.to_string())".to_string();
+                let bad_request_fmt =
+                    "halo_micro::rest::http::bad_request({E}.to_string())".to_string();
 
                 // imports
                 let mut imports = Vec::new();
                 imports.push("use std::sync::Arc;".to_string());
                 imports.push("use hyper::Body;".to_string());
-                imports.push("use halo::rest as rest;".to_string());
+                imports.push("use halo_micro::rest as rest;".to_string());
                 if has_req {
-                    imports.push("use halo::rest::http::request;".to_string());
+                    imports.push("use halo_micro::rest::http::request;".to_string());
                 }
                 imports.push("use http::{Response, StatusCode};".to_string());
                 imports.push("use crate::svc::ServiceContext;".to_string());
@@ -664,7 +663,7 @@ pub mod shared {
                 let tpl_ctx = self
                     .base_ctx
                     .clone()
-                    .set_str("imports", &imports.join("\n"))
+                    .set_str("imports", imports.join("\n"))
                     // go-zero 风格（模板变量名保持稳定）
                     .set_bool("HasDoc", !doc_str.trim().is_empty())
                     .set_str("Doc", &doc_str)
@@ -739,15 +738,15 @@ pub mod shared {
                         }
                     }
 
-                    if !extra_logic_imports.is_empty() {
-                        if let Some(idx) = first_content.find("\n#[rest::handler]") {
-                            let insert_pos = idx;
-                            let mut prefix = first_content[..insert_pos].to_string();
-                            prefix.push_str(&extra_logic_imports.join("\n"));
-                            prefix.push('\n');
-                            let suffix = first_content[insert_pos..].to_string();
-                            first_content = format!("{prefix}{suffix}");
-                        }
+                    if !extra_logic_imports.is_empty()
+                        && let Some(idx) = first_content.find("\n#[rest::handler]")
+                    {
+                        let insert_pos = idx;
+                        let mut prefix = first_content[..insert_pos].to_string();
+                        prefix.push_str(&extra_logic_imports.join("\n"));
+                        prefix.push('\n');
+                        let suffix = first_content[insert_pos..].to_string();
+                        first_content = format!("{prefix}{suffix}");
                     }
 
                     let mut merged = first_content;
@@ -1064,7 +1063,7 @@ pub mod shared {
 
     impl<'a> Generator<'a> {
         fn types(&self, files: &mut Vec<Artifact>) -> Result<()> {
-            for (g, _hs) in &self.group_handlers {
+            for g in self.group_handlers.keys() {
                 let is_default_group = g.is_empty();
                 if !is_default_group {
                     let g_file = semantic::group_file_base(g, self.style);
@@ -1198,6 +1197,7 @@ pub mod shared {
 
     // 命名风格相关规则已上移到语义层：`crate::semantic::api::rs`
 
+    #[allow(clippy::too_many_arguments)]
     pub fn generate_project(
         _web: &str,
         spec: &crate::spec::api::Spec,
@@ -1303,7 +1303,7 @@ pub mod shared {
 
         // collect middlewares (snake & pascal)
         let mut mw_defs: Vec<(String, String)> = Vec::new();
-        if let Some(svc) = spec.service.groups.get(0).map(|_| &spec.service) {
+        if let Some(svc) = spec.service.groups.first().map(|_| &spec.service) {
             for g in &svc.groups {
                 if let Some(m) = group_middleware(g) {
                     let snake = to_snake(&m);

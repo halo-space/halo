@@ -86,6 +86,7 @@ pub enum ApiCommand {
     Openapi(OpenapiArgs),
 }
 
+#[allow(dead_code)]
 pub fn run(args: ApiArgs) -> Result<()> {
     match args.command {
         Some(ApiCommand::Openapi(o)) => run_openapi(o),

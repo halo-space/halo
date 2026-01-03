@@ -74,10 +74,7 @@ impl Router {
         validate_path(&route.path)?;
         let match_path = to_matchit_path(&route.path)?;
         self.routes.push(route.clone());
-        let tree = self
-            .trees
-            .entry(route.method.clone())
-            .or_insert_with(MatchRouter::new);
+        let tree = self.trees.entry(route.method.clone()).or_default();
         tree.insert(match_path, route.handler.clone())
             .with_context(|| format!("register route {} {}", route.method, route.path))?;
         Ok(())
@@ -125,18 +122,18 @@ impl Router {
         let method = req.method().clone();
         let path = req.uri().path().to_string();
 
-        if let Some(tree) = self.trees.get(&method) {
-            if let Ok(matched) = tree.at(&path) {
-                if !matched.params.is_empty() {
-                    let mut params = HashMap::new();
-                    for (k, v) in matched.params.iter() {
-                        params.insert(k.to_string(), v.to_string());
-                    }
-                    req.extensions_mut()
-                        .insert(crate::router::params::PathParams { params });
+        if let Some(tree) = self.trees.get(&method)
+            && let Ok(matched) = tree.at(&path)
+        {
+            if !matched.params.is_empty() {
+                let mut params = HashMap::new();
+                for (k, v) in matched.params.iter() {
+                    params.insert(k.to_string(), v.to_string());
                 }
-                return matched.value.clone().call(req).await;
+                req.extensions_mut()
+                    .insert(crate::router::params::PathParams { params });
             }
+            return matched.value.clone().call(req).await;
         }
 
         if let Some(allows) = self.allowed_methods(&path, &method) {
@@ -216,7 +213,7 @@ fn to_matchit_path(path: &str) -> anyhow::Result<String> {
                 if name.is_empty() {
                     anyhow::bail!("wildcard name cannot be empty: {path}");
                 }
-                out.push_str("*");
+                out.push('*');
                 out.push_str(name);
             } else {
                 if inner.is_empty() {

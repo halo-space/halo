@@ -5,9 +5,12 @@ use syn::{FnArg, ItemFn, Pat, PatIdent, parse_macro_input, spanned::Spanned};
 /// Attribute macro to convert an async function into a `rest::HandlerFunc`（静态管线版本）。
 ///
 /// Usage:
-/// ```
+/// ```text
 /// #[rest::handler]
-/// async fn foo(app: AppContext, mut req: http::Request<hyper::Body>) -> http::Response<hyper::Body> { ... }
+/// async fn foo(
+///     app: AppContext,
+///     mut req: http::Request<hyper::Body>,
+/// ) -> http::Response<hyper::Body> { .. }
 /// ```
 /// The generated function keeps the same name and returns `rest::HandlerFunc`, taking
 /// all arguments except the last request argument; the request is assumed to be

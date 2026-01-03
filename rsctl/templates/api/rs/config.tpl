@@ -1,7 +1,7 @@
 // Code scaffolded by rsctl. Safe to edit.
 // rsctl {{ version }}
 
-use halo::rest::RestConf;
+use halo_micro::rest::RestConf;
 use serde::Deserialize;
 
 {% if imports %}

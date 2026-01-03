@@ -1,7 +1,7 @@
 //! Minimal runnable web service example (chainable naming):
 //! - Route: `/ai/v1/v1/api/square`
 //! - Response: `{"code":200,"message":"ok","data":"hello world"}`
-//! Run: `cargo run -p halo-rest --example hello`
+//!   Run: `cargo run -p halo-rest --example hello`
 
 use http::{Method, Response, StatusCode};
 use hyper::Body;
@@ -75,8 +75,10 @@ async fn add_header_middleware(req: http::Request<Body>, next: HandlerFunc) -> R
 
 fn main() {
     // Basic config
-    let mut conf = RestConf::default();
-    conf.port = 8080;
+    let mut conf = RestConf {
+        port: 8080,
+        ..RestConf::default()
+    };
 
     // Disable built-in middlewares: gzip, max_bytes, rate_limit, concurrency_limit, timeout
     conf.middlewares.gzip = false;
@@ -118,14 +120,10 @@ fn main() {
             .add_routes(vec![Route::new(
                 Method::GET,
                 "/",
-                square_list_handler(AppContext::default()),
+                square_list_handler(AppContext),
             )]);
 
-        println!(
-            "Listening on {}{}",
-            server_addr(&server),
-            "/ai/v1/v1/api/square"
-        );
+        println!("Listening on {}/ai/v1/v1/api/square", server_addr(&server));
         println!("Press Ctrl+C to stop.");
         let handle = server.start().await.expect("start server");
         // Block until Ctrl+C, then shut down gracefully

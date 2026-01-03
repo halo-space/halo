@@ -295,28 +295,28 @@ impl RestConf {
         if self.port == 0 {
             return Err("Port must be > 0".to_string());
         }
-        if let Some(w) = self.workers {
-            if w == 0 {
-                return Err("Workers must be >= 1".to_string());
-            }
+        if let Some(w) = self.workers
+            && w == 0
+        {
+            return Err("Workers must be >= 1".to_string());
         }
-        if let Some(aff) = &self.cpu_affinity {
-            if aff.is_empty() {
-                return Err("CpuAffinity cannot be empty when set".to_string());
-            }
+        if let Some(aff) = &self.cpu_affinity
+            && aff.is_empty()
+        {
+            return Err("CpuAffinity cannot be empty when set".to_string());
         }
         if self.h2c && !self.http2 {
             return Err("h2c requires http2=true".to_string());
         }
-        if let Some(rl) = &self.rate_limit {
-            if rl.permits_per_second == 0 || rl.burst == 0 {
-                return Err("RateLimit permits_per_second and burst must be > 0".to_string());
-            }
+        if let Some(rl) = &self.rate_limit
+            && (rl.permits_per_second == 0 || rl.burst == 0)
+        {
+            return Err("RateLimit permits_per_second and burst must be > 0".to_string());
         }
-        if let Some(c) = self.concurrency_limit {
-            if c == 0 {
-                return Err("ConcurrencyLimit must be > 0".to_string());
-            }
+        if let Some(c) = self.concurrency_limit
+            && c == 0
+        {
+            return Err("ConcurrencyLimit must be > 0".to_string());
         }
         Ok(())
     }

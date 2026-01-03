@@ -2,7 +2,7 @@
 use anyhow::{Context, Result, anyhow};
 use serde_json::{Map, Value, json};
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub struct Options {
@@ -284,12 +284,12 @@ fn primitive_schema(name: &str) -> Value {
 }
 
 fn field_json_name(f: &crate::spec::api::Field) -> String {
-    if let Ok(tags) = f.tags() {
-        if let Some(t) = tags.get("json") {
-            if !t.name.is_empty() && t.name != "-" {
-                return t.name.clone();
-            }
-        }
+    if let Ok(tags) = f.tags()
+        && let Some(t) = tags.get("json")
+        && !t.name.is_empty()
+        && t.name != "-"
+    {
+        return t.name.clone();
     }
     f.name.clone()
 }
@@ -339,7 +339,7 @@ fn normalize_path(p: &str) -> String {
 }
 
 fn load_ast_recursive(
-    api_file: &PathBuf,
+    api_file: &Path,
     is_root: bool,
     visited: &mut std::collections::HashSet<std::path::PathBuf>,
 ) -> Result<crate::parse::api::Ast> {
@@ -418,7 +418,6 @@ fn extract_root_prefix_text(path: &PathBuf) -> Result<Option<String>> {
         // Fallback: token after colon or first '/' on the same line.
         if let Some(colon_pos) = rest.find(':') {
             let token = rest[colon_pos + 1..]
-                .trim_start()
                 .split_whitespace()
                 .next()
                 .unwrap_or("");

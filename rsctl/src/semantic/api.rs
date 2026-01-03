@@ -92,7 +92,6 @@ pub fn to_spec(ast: &crate::parse::api::Ast) -> Result<crate::spec::api::Spec> {
         version: info_version,
         author: info_author,
         email: info_email,
-        ..Default::default()
     };
 
     Ok(crate::spec::api::Spec {

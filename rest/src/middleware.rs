@@ -12,6 +12,7 @@ use hyper::Body;
 pub use limit::max_bytes;
 pub use rate::{concurrency_limit, rate_limit};
 use std::future::Future;
+use std::slice;
 use std::sync::Arc;
 pub use timeout::timeout;
 
@@ -91,7 +92,7 @@ where
     routes
         .into_iter()
         .map(|route| {
-            let handler = apply_middlewares(route.handler.clone(), &[middleware.clone()]);
+            let handler = apply_middlewares(route.handler.clone(), slice::from_ref(&middleware));
             Route { handler, ..route }
         })
         .collect()

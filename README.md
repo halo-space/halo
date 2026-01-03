@@ -14,8 +14,8 @@
 ```text
 halo/
   core/        # 基础核心库
-  rest/        # Web 适配层/中间件/DSL（axum/actix 等）
-  halo/        # 门面 crate（package=halo-micro，对外 lib crate 名为 `halo`）
+  rest/        # Web 适配层/中间件/DSL
+  halo/        # 门面 crate（package=halo-micro，lib crate 名为 `halo_micro`）
   utils/       # 通用工具 crate（halo-utils）
   rsctl/       # 代码生成器与模板
   LICENSE
@@ -33,7 +33,7 @@ halo/
 
 - `halo-core`
 - `halo-rest`
-- `halo-micro`（**package 名**；但对外 **lib crate 名固定为 `halo`**）
+- `halo-micro`（**package 名**；lib crate 名为 `halo_micro`）
 
 ### halo crate 最后的考虑
 ```
@@ -43,7 +43,7 @@ halo/
 使用方依赖写法示例：
 
 ```toml
-halo = { package = "halo-micro", version = "0.1.0" }
+halo_micro = { package = "halo-micro", version = "0.1.0" }
 ```
 
 

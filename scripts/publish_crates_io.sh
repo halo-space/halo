@@ -16,7 +16,7 @@ usage() {
 默认发布顺序：
   1) halo-core
   2) halo-rest
-  3) halo-micro（lib crate 名为 halo；使用方依赖写 halo = { package = "halo-micro", ... }）
+  3) halo-micro（lib crate 名为 halo_micro；使用方依赖写 halo_micro = { package = "halo-micro", ... }）
 
 用法：
   ./scripts/publish_crates_io.sh [--dry-run] [--allow-dirty] [--skip-checks] [--registry crates-io]

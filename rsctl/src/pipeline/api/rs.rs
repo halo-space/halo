@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result, anyhow};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 #[derive(Debug, Clone)]
@@ -136,7 +136,7 @@ pub(crate) fn pipeline(cfg: &Config) -> Result<()> {
 }
 
 fn load_ast_recursive(
-    api_file: &PathBuf,
+    api_file: &Path,
     is_root: bool,
     visited: &mut std::collections::HashSet<std::path::PathBuf>,
 ) -> Result<crate::parse::api::Ast> {
@@ -193,7 +193,7 @@ fn extract_root_prefix(ast: &crate::parse::api::Ast) -> Option<String> {
     None
 }
 
-fn extract_root_prefix_text(path: &PathBuf) -> Result<Option<String>> {
+fn extract_root_prefix_text(path: &Path) -> Result<Option<String>> {
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("read api file for root_prefix: {}", path.display()))?;
     let lowered = content.to_ascii_lowercase();
@@ -215,7 +215,6 @@ fn extract_root_prefix_text(path: &PathBuf) -> Result<Option<String>> {
         // Fallback: take token after colon
         if let Some(colon_pos) = rest.find(':') {
             let token = rest[colon_pos + 1..]
-                .trim_start()
                 .split_whitespace()
                 .next()
                 .unwrap_or("");

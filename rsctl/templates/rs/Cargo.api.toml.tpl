@@ -16,7 +16,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 hyper = "0.14"
-halo = { package = "halo-micro", path = "../../../halo", features = {{ restFeatures }} }
+halo_micro = { package = "halo-micro", path = "../../../halo", features = {{ restFeatures }} }
 {{ validatorDep }}
 {{ authDep }}
 

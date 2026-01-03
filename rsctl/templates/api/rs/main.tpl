@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use halo::rest::{Server};
+use halo_micro::rest::{Server};
 use crate::handler::routes::register_routes;
 
 mod config;
@@ -31,7 +31,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let mut c = config::Config::new();
-    halo::conf::must_load(&config_file, &mut c);
+    halo_micro::conf::must_load(&config_file, &mut c);
 
     let mut server = Server::new(c.rest.clone());
     let svc_ctx = Arc::new(svc::ServiceContext::new(c));

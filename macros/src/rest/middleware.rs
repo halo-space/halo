@@ -5,9 +5,13 @@ use syn::{FnArg, ItemFn, Pat, PatIdent, parse_macro_input, spanned::Spanned};
 /// Attribute macro to convert an async function into a `rest::Middleware`（静态管线版本）。
 ///
 /// Usage:
-/// ```
+/// ```text
 /// #[rest::middleware]
-/// async fn demo(app: AppContext, mut req: http::Request<Body>, next: rest::HandlerFunc) -> http::Response<Body> { ... }
+/// async fn demo(
+///     app: AppContext,
+///     mut req: http::Request<Body>,
+///     next: rest::HandlerFunc,
+/// ) -> http::Response<Body> { .. }
 /// ```
 /// The generated function keeps the same name and returns `rest::Middleware`, taking
 /// all arguments except the last two (request and next handler). Request is assumed

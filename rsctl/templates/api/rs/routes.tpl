@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use halo::rest::{Route, Server};
+use halo_micro::rest::{Route, Server};
 use http::Method;
 
 use crate::svc::ServiceContext;

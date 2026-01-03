@@ -59,20 +59,19 @@ pub async fn get_form_values(
     }
 
     // body part (only for form content type)
-    if let Some(ct) = req.headers().get(http::header::CONTENT_TYPE) {
-        if let Ok(ct) = ct.to_str() {
-            if ct.contains("application/x-www-form-urlencoded") {
-                let bytes = hyper::body::to_bytes(req.body_mut())
-                    .await
-                    .context("read form body")?;
-                if bytes.len() > MAX_MEMORY as usize {
-                    anyhow::bail!("form body too large");
-                }
-                append_pairs(std::str::from_utf8(&bytes)?, &mut params, &mut count)?;
-                // reinsert body for downstream use
-                *req.body_mut() = Body::from(bytes);
-            }
+    if let Some(ct) = req.headers().get(http::header::CONTENT_TYPE)
+        && let Ok(ct) = ct.to_str()
+        && ct.contains("application/x-www-form-urlencoded")
+    {
+        let bytes = hyper::body::to_bytes(req.body_mut())
+            .await
+            .context("read form body")?;
+        if bytes.len() > MAX_MEMORY as usize {
+            anyhow::bail!("form body too large");
         }
+        append_pairs(std::str::from_utf8(&bytes)?, &mut params, &mut count)?;
+        // reinsert body for downstream use
+        *req.body_mut() = Body::from(bytes);
     }
 
     Ok(params)
@@ -178,12 +177,11 @@ pub fn parse_header(header_value: &str) -> HashMap<String, String> {
 /// Get remote addr, prefer X-Forwarded-For then extension-provided peer addr.
 /// Get remote addr: prefer X-Forwarded-For, then peer addr in extensions.
 pub fn get_remote_addr(req: &Request<Body>) -> String {
-    if let Some(v) = req.headers().get("x-forwarded-for") {
-        if let Ok(s) = v.to_str() {
-            if !s.is_empty() {
-                return s.to_string();
-            }
-        }
+    if let Some(v) = req.headers().get("x-forwarded-for")
+        && let Ok(s) = v.to_str()
+        && !s.is_empty()
+    {
+        return s.to_string();
     }
     if let Some(addr) = req.extensions().get::<std::net::SocketAddr>() {
         return addr.to_string();

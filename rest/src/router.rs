@@ -5,6 +5,7 @@ use crate::middleware::{IntoHandler, Middleware};
 use http::Method;
 
 pub mod params;
+#[allow(clippy::module_inception)]
 pub mod router;
 
 pub use params::PathParams;

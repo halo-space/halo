@@ -1,8 +1,8 @@
 //! Axum example with the same interface:
 //! - Route: `/ai/v1/v1/api/square`
 //! - Response: `{"code":200,"msg":"ok","data":{"result":"echo: <keyword>"}}`
-//! Run: `cargo run -p halo-rest --example axum --release`
-//! Stop: Ctrl+C
+//!   Run: `cargo run -p halo-rest --example axum --release`
+//!   Stop: Ctrl+C
 
 use axum::{
     Json, Router,
@@ -76,7 +76,7 @@ async fn add_header_middleware(req: axum::http::Request<Body>, next: Next) -> im
 async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/ai/v1/v1/api/square", get(square_list_handler))
-        .with_state(AppContext::default())
+        .with_state(AppContext)
         .layer(middleware::from_fn(add_header_middleware));
 
     let addr: SocketAddr = "0.0.0.0:8081".parse()?;
