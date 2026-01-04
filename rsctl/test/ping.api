@@ -1,0 +1,17 @@
+syntax = "v1"
+info (
+    title:   "api 文件完整示例写法"
+    desc:    "演示如何编写 api 文件"
+    author:  "keson.an"
+    date:    "2022 年 12 月 26 日"
+    version: "v2"
+    root_prefix:"/api/v1"
+)
+
+@server (
+    group: healthz
+)
+service user {
+    @handler healthz
+    get /healthz returns (HealthzResp)
+}
