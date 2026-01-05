@@ -1,6 +1,6 @@
 [package]
 name = "halo-core"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "halo core（配置/服务基础能力）"
 license = "Apache-2.0"
@@ -19,5 +19,9 @@ serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9"
 serde_json = "1"
 toml = "0.8"
+tokio = { version = "1", features = ["sync"], optional = false }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
 
 
