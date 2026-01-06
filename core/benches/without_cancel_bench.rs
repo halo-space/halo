@@ -8,9 +8,7 @@ fn bench_without_cancel(c: &mut Criterion) {
         b.iter(|| {
             let (ctx, cancel) = WithCancel(Background());
             let detached = WithoutCancel(ctx.clone());
-            // 让父取消
             cancel();
-            // 模拟子仍然工作一小段时间
             thread::sleep(Duration::from_millis(1));
             assert!(detached.err().is_none());
         })

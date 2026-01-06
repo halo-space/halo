@@ -24,6 +24,8 @@ halo_micro = { package = "halo-micro", version = "0.1.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
 tokio-util = { version = "0.7", features = ["full"] }
 criterion = "0.5"
+num_cpus = "1"
+rustc_version_runtime = "0.1"
 
 [[bench]]
 name = "cancel_bench"
@@ -51,6 +53,10 @@ harness = false
 
 [[bench]]
 name = "without_cancel_bench"
+harness = false
+
+[[bench]]
+name = "env_info"
 harness = false
 
 

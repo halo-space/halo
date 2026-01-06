@@ -2,35 +2,59 @@
 
 环境：tokio 单线程 runtime，本地样本（平均值）。
 
-### 取消对比 tokio-util（waiters 数量）
-| waiters | halo_core | tokio-util | 优势 |
-| --- | --- | --- | --- |
-| 100 | ~19.5 µs | ~25.1 µs | ~22% |
-| 500 | ~95.0 µs | ~120.0 µs | ~21% |
-| 1,000 | ~189.9 µs | ~249.3 µs | ~24% |
-| 5,000 | ~1.03 ms | ~1.27 ms | ~19% |
-| 10,000 | ~1.97 ms | ~2.53 ms | ~22% |
+### 环境信息（env_info bench）
+| key | value |
+| --- | --- |
+| OS | windows |
+| Arch | x86_64 |
+| 逻辑 CPU | 16 |
+| 物理 CPU | 8 |
+| rustc | 1.92.0 (stable) |
+| rustc commit | ded5c06cf21d2b93bffd5d884aa6e96934ee4234 |
+
+### 取消（waiters 数量）
+| waiters | halo_core |
+| --- | --- |
+| 100 | ~19.1 µs |
+| 500 | ~94.8 µs |
+| 1,000 | ~184.6 µs |
+| 5,000 | ~0.98 ms |
+| 10,000 | ~2.03 ms |
 
 ### 截止/超时
 | timeout | halo_core |
 | --- | --- |
-| 10/50/100 ms | 数十微秒级（创建+取消/触发），以运行输出为准 |
+| 10 ms | ~0.78 µs |
+| 50 ms | ~0.86 µs |
+| 100 ms | ~0.87 µs |
 
 ### Done（同步+异步 waiters）
-| waiters (1/10/100/500/1000) | 取消+唤醒所有 waiters，耗时递增，均低于 tokio-util 同类场景 |
+| waiters | halo_core | 说明 |
+| --- | --- | --- |
+| n/a | n/a | 未在 20s 内完成（待补测） |
 
 ### AfterFunc
-| callbacks (10/100/500/1000) | 注册+取消路径内同步执行，无 spawn；耗时随数量线性增长，低于 tokio-util 同类场景 |
+| callbacks | halo_core | 说明 |
+| --- | --- | --- |
+| 10 | ~1.38 µs | 取消路径内同步执行，无 spawn |
+| 100 | ~8.96 µs |  |
+| 500 | ~41.1 µs |  |
+| 1,000 | ~78.7 µs |  |
+
+### Value（WithValue）
+| depth (1/4/16/64/256) | halo_core |
+| --- | --- |
+| 构建 + 查找 | ~76.3–76.6 µs |
 
 ### ContextAware
-| case | result |
-| --- | --- |
-| 50ms 超时 vs 1s 任务 | ~百微秒返回超时 |
+| 场景 | halo_core | 说明 |
+| --- | --- | --- |
+| 50ms 超时 vs 1s 任务 | ~64.4 ms | 返回超时 |
 
 ### WithoutCancel
-| case | result |
-| --- | --- |
-| 父取消，子脱钩继续 | 微秒级，err 为空 |
+| 场景 | halo_core | 说明 |
+| --- | --- | --- |
+| 父取消，子脱钩继续 | ~18.5 µs | err 为空 |
 
 运行：
 - `cargo bench --bench <bench_name>`

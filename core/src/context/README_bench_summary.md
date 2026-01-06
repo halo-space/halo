@@ -3,35 +3,59 @@
 Environment: tokio current-thread runtime, local samples (avg).  
 运行环境：tokio 单线程 runtime，本地样本（平均值）。
 
-### Cancel vs tokio-util (waiters)
-| waiters | halo_core | tokio-util | 优势 |
-| --- | --- | --- | --- |
-| 100 | ~19.5 µs | ~25.1 µs | ~22% faster |
-| 500 | ~95.0 µs | ~120.0 µs | ~21% faster |
-| 1,000 | ~189.9 µs | ~249.3 µs | ~24% faster |
-| 5,000 | ~1.03 ms | ~1.27 ms | ~19% faster |
-| 10,000 | ~1.97 ms | ~2.53 ms | ~22% faster |
+### Environment Info (env_info bench)
+| key | value |
+| --- | --- |
+| OS | windows |
+| Arch | x86_64 |
+| Logical CPUs | 16 |
+| Physical CPUs | 8 |
+| rustc | 1.92.0 (stable) |
+| rustc commit | ded5c06cf21d2b93bffd5d884aa6e96934ee4234 |
+
+### Cancel (waiters)
+| waiters | halo_core |
+| --- | --- |
+| 100 | ~19.1 µs |
+| 500 | ~94.8 µs |
+| 1,000 | ~184.6 µs |
+| 5,000 | ~0.98 ms |
+| 10,000 | ~2.03 ms |
 
 ### Deadline / Timeout
 | timeout | halo_core |
 | --- | --- |
-| 10/50/100 ms | tens of microseconds (create + cancel/trigger), see run output |
+| 10 ms | ~0.78 µs |
+| 50 ms | ~0.86 µs |
+| 100 ms | ~0.87 µs |
 
 ### Done (sync + async waiters)
-| waiters (1/10/100/500/1000) | Cancel + wake all waiters; increases with n; below tokio-util in similar scenarios |
+| waiters | halo_core | note |
+| --- | --- | --- |
+| n/a | n/a | not completed under 20s (bench pending) |
 
 ### AfterFunc
-| callbacks (10/100/500/1000) | Register + execute in cancel path, no spawn; cost scales linearly; below tokio-util (see cancel comparison) |
+| callbacks | halo_core | note |
+| --- | --- | --- |
+| 10 | ~1.38 µs | cancel-path sync exec |
+| 100 | ~8.96 µs |  |
+| 500 | ~41.1 µs |  |
+| 1,000 | ~78.7 µs |  |
+
+### Value (WithValue)
+| depth (1/4/16/64/256) | halo_core |
+| --- | --- |
+| build + lookup | ~76.3–76.6 µs |
 
 ### ContextAware
-| case | result |
-| --- | --- |
-| 50ms timeout vs 1s job | ~hundreds of microseconds, returns timeout |
+| case | halo_core | note |
+| --- | --- | --- |
+| 50ms timeout vs 1s job | ~64.4 ms | returns timeout |
 
 ### WithoutCancel
-| case | result |
-| --- | --- |
-| parent canceled, child detached continues | microsecond-level, err is None |
+| case | halo_core | note |
+| --- | --- | --- |
+| parent canceled, child detached continues | ~18.5 µs | err is None |
 
 Run:
 - `cargo bench --bench <bench_name>`

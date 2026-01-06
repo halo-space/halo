@@ -1,4 +1,4 @@
-use criterion::{Criterion, criterion_group, criterion_main};
+use criterion::{criterion_group, criterion_main, Criterion};
 use halo_core::context::{Background, WithCancel};
 use std::sync::Arc;
 use tokio::runtime::Builder;
@@ -20,7 +20,6 @@ fn bench_done_sync_async(c: &mut Criterion) {
             b.iter(|| {
                 rt.block_on(async {
                     let (ctx, cancel) = WithCancel(Background());
-                    // async waiters
                     let mut async_tasks = Vec::with_capacity(n);
                     for _ in 0..n {
                         let c = ctx.clone();
@@ -28,7 +27,6 @@ fn bench_done_sync_async(c: &mut Criterion) {
                             c.done_async().await;
                         }));
                     }
-                    // sync waiter
                     std::thread::spawn({
                         let c = ctx.clone();
                         move || {
