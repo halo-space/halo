@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use halo_core::context::{Background, WithCancel};
 use std::sync::Arc;
 use tokio::runtime::Builder;
