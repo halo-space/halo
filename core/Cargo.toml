@@ -1,6 +1,6 @@
 [package]
 name = "halo-core"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 description = "halo core（配置/服务基础能力）"
 license = "Apache-2.0"

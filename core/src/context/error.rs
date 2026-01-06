@@ -68,3 +68,9 @@ impl std::error::Error for ContextError {
 /// Go 对齐的默认错误实例。
 pub const CANCELLED: ContextError = ContextError::new(Error::Canceled);
 pub const DEADLINE_EXCEEDED: ContextError = ContextError::new(Error::DeadlineExceeded);
+
+impl From<Error> for ContextError {
+    fn from(kind: Error) -> Self {
+        ContextError::new(kind)
+    }
+}

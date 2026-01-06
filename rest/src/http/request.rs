@@ -28,9 +28,7 @@ pub async fn read_json<T: DeserializeOwned>(req: &mut Request<Body>) -> anyhow::
 
 /// Parse `application/json` body with size limit, return `None` if not json.
 /// Parse JSON body with size limit; return None if not JSON.
-pub async fn parse_json<T: DeserializeOwned>(
-    req: &mut Request<Body>,
-) -> anyhow::Result<Option<T>> {
+pub async fn parse_json<T: DeserializeOwned>(req: &mut Request<Body>) -> anyhow::Result<Option<T>> {
     if !with_json_body(req) {
         return Ok(None);
     }
