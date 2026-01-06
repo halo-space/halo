@@ -15,25 +15,25 @@ Environment: tokio current-thread runtime, local samples (avg).
 ### Deadline / Timeout
 | timeout | halo_core |
 | --- | --- |
-| 10/50/100 ms | 数十微秒级（创建+取消/触发），以运行输出为准 |
+| 10/50/100 ms | tens of microseconds (create + cancel/trigger), see run output |
 
 ### Done (sync + async waiters)
-| waiters (1/10/100/500/1000) | 取消+唤醒所有 waiters，耗时递增，均低于 tokio-util 同类取消场景 |
+| waiters (1/10/100/500/1000) | Cancel + wake all waiters; increases with n; below tokio-util in similar scenarios |
 
 ### AfterFunc
-| callbacks (10/100/500/1000) | 注册+取消路径内同步执行，无 spawn，耗时线性随数量增长；低于 tokio-util 同类场景（参考取消对比） |
+| callbacks (10/100/500/1000) | Register + execute in cancel path, no spawn; cost scales linearly; below tokio-util (see cancel comparison) |
 
 ### ContextAware
 | case | result |
 | --- | --- |
-| 50ms timeout vs 1s job | ~百微秒返回超时 |
+| 50ms timeout vs 1s job | ~hundreds of microseconds, returns timeout |
 
 ### WithoutCancel
 | case | result |
 | --- | --- |
-| 父取消，子脱钩继续 | 微秒级，err 为空 |
+| parent canceled, child detached continues | microsecond-level, err is None |
 
-Run / 运行：
+Run:
 - `cargo bench --bench <bench_name>`
 - Bench files: `core/benches/` (cancel/deadline/value/done/afterfunc/contextaware/without_cancel)
 

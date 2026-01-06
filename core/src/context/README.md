@@ -1,7 +1,7 @@
 ## Go-style Context for Rust (halo-core)
 
-the Chinese guide here: [README.zh.md](README.zh.md).
-
+Bench summaries: [English](README_bench_summary.md) | [中文](README_bench_summary.zh.md)  
+Chinese guide: [README.zh.md](README.zh.md).
 
 This module mirrors Go’s `context` package: cancellation propagation, deadlines/timeouts, values, and AfterFunc callbacks.
 
