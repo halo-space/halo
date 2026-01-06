@@ -8,6 +8,8 @@ pub enum Error {
     Canceled,
     /// 对齐 Go 的 `context deadline exceeded`。
     DeadlineExceeded,
+    /// 自定义错误消息（不与取消/超时混淆）。
+    Any,
 }
 
 impl Error {
@@ -15,6 +17,7 @@ impl Error {
         match self {
             Error::Canceled => "context canceled",
             Error::DeadlineExceeded => "context deadline exceeded",
+            Error::Any => "context error",
         }
     }
 }
@@ -26,6 +29,17 @@ pub struct ContextError {
     cause: Option<Arc<dyn std::error::Error + Send + Sync>>,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct StaticStrError(&'static str);
+
+impl Display for StaticStrError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0)
+    }
+}
+
+impl std::error::Error for StaticStrError {}
+
 impl ContextError {
     pub const fn new(kind: Error) -> Self {
         Self { kind, cause: None }
@@ -36,6 +50,11 @@ impl ContextError {
         cause: Option<Arc<dyn std::error::Error + Send + Sync>>,
     ) -> Self {
         Self { kind, cause }
+    }
+
+    /// 简写：Any + 静态字符串。
+    pub fn new_message(msg: &'static str) -> Self {
+        Self::with_cause(Error::Any, Some(Arc::new(StaticStrError(msg))))
     }
 
     pub const fn kind(&self) -> Error {

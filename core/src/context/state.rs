@@ -179,12 +179,14 @@ impl CancelState {
             guard.status = match kind {
                 Error::Canceled => Status::Canceled,
                 Error::DeadlineExceeded => Status::DeadlineExceeded,
+                Error::Any => Status::Canceled,
             };
             if guard.cause.is_none() {
                 guard.cause = cause_for_self.clone().or_else(|| {
                     let err = match kind {
                         Error::Canceled => CANCELLED,
                         Error::DeadlineExceeded => DEADLINE_EXCEEDED,
+                        Error::Any => CANCELLED,
                     };
                     Some(Arc::new(err) as Arc<dyn std::error::Error + Send + Sync>)
                 });
