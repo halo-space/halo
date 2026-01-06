@@ -5,7 +5,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
-use core::context::{AfterFunc, Background, Context, ContextError, WithTimeout};
+use halo_micro::core::context::{AfterFunc, Background, Context, ContextError, Error, WithTimeout};
 
 fn main() {
     let (ctx, cancel) = WithTimeout(Background(), Duration::from_secs(5));
@@ -25,7 +25,7 @@ fn main() {
         if ctx.done().wait_timeout(Duration::from_millis(100)) {
             break Err(ctx
                 .err()
-                .unwrap_or_else(|| ContextError::new(core::context::ContextErrorKind::Canceled)));
+                .unwrap_or_else(|| ContextError::new(Error::Canceled)));
         }
         if let Ok(res) = rx.try_recv() {
             break res;

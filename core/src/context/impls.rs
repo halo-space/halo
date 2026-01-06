@@ -1,5 +1,5 @@
 #![allow(non_snake_case)]
-use crate::context::error::{CANCELLED, ContextError, ContextErrorKind, DEADLINE_EXCEEDED};
+use crate::context::error::{CANCELLED, ContextError, DEADLINE_EXCEEDED, Error};
 use crate::context::state::{CancelKind, CancelState, DoneHandle, StopFunc};
 use crate::context::value::ValueKey;
 use std::any::Any;
@@ -147,7 +147,7 @@ impl Context {
         }
     }
 
-    pub fn cause(&self) -> Option<Arc<dyn Error + Send + Sync>> {
+    pub fn cause(&self) -> Option<Arc<dyn StdError + Send + Sync>> {
         match self.inner.as_ref() {
             ContextInner::Empty => None,
             ContextInner::Cancelable(ctx) => ctx.state.cause(),
@@ -283,7 +283,7 @@ pub fn AfterFunc(ctx: &Context, f: impl FnOnce() + Send + 'static) -> StopFunc {
     ctx.done().register(f)
 }
 
-pub fn Cause(ctx: &Context) -> Option<Arc<dyn Error + Send + Sync>> {
+pub fn Cause(ctx: &Context) -> Option<Arc<dyn StdError + Send + Sync>> {
     ctx.cause()
 }
 
@@ -352,23 +352,23 @@ fn propagate_parent(parent: Context, state: Arc<CancelState>) {
             .unwrap_or(CancelKind::Canceled);
         let inherited = parent
             .cause()
-            .or_else(|| err.map(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>));
+            .or_else(|| err.map(|e| Arc::new(e) as Arc<dyn StdError + Send + Sync>));
         state.cancel(kind, inherited);
     });
 }
 
 fn map_error_kind(err: &ContextError) -> CancelKind {
     match err.kind() {
-        ContextErrorKind::Canceled => CancelKind::Canceled,
-        ContextErrorKind::DeadlineExceeded => CancelKind::Deadline,
+        Error::Canceled => CancelKind::Canceled,
+        Error::DeadlineExceeded => CancelKind::DeadlineExceeded,
     }
 }
 
-fn default_canceled() -> Option<Arc<dyn Error + Send + Sync>> {
+fn default_canceled() -> Option<Arc<dyn StdError + Send + Sync>> {
     Some(Arc::new(CANCELLED) as Arc<dyn Error + Send + Sync>)
 }
 
-fn default_deadline() -> Option<Arc<dyn Error + Send + Sync>> {
+fn default_deadline() -> Option<Arc<dyn StdError + Send + Sync>> {
     Some(Arc::new(DEADLINE_EXCEEDED) as Arc<dyn Error + Send + Sync>)
 }
 
@@ -398,7 +398,7 @@ mod tests {
 
     fn assert_canceled(ctx: &Context) {
         let err = ctx.err().expect("expected canceled");
-        assert_eq!(err.kind(), ContextErrorKind::Canceled);
+        assert_eq!(err.kind(), Error::Canceled);
     }
 
     #[test]
@@ -444,7 +444,7 @@ mod tests {
         let (child, _) = WithCancel(parent);
         sleep(Duration::from_millis(80));
         let err = child.err().expect("child canceled");
-        assert_eq!(err.kind(), ContextErrorKind::DeadlineExceeded);
+        assert_eq!(err.kind(), Error::DeadlineExceeded);
     }
 
     #[test]
@@ -452,7 +452,7 @@ mod tests {
         let (ctx, _) = WithDeadline(Background(), Instant::now() + Duration::from_millis(30));
         sleep(Duration::from_millis(60));
         let err = ctx.err().expect("deadline");
-        assert_eq!(err.kind(), ContextErrorKind::DeadlineExceeded);
+        assert_eq!(err.kind(), Error::DeadlineExceeded);
     }
 
     #[test]

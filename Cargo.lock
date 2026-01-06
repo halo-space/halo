@@ -633,6 +633,22 @@ name = "halo-core"
 version = "0.1.1"
 dependencies = [
  "anyhow",
+ "halo-core 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "halo-micro 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tokio",
+ "toml",
+]
+
+[[package]]
+name = "halo-core"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fcf62413ce02e82eb50470edd3199f37384440cc372d8533a315f6c060a51449"
+dependencies = [
+ "anyhow",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -650,11 +666,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "halo-macros"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f10702909e1bae5bf0aab45ecb1feab7cf45c68fd83f5bc75bef96bc31229d8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "halo-micro"
 version = "0.1.0"
 dependencies = [
- "halo-core",
- "halo-rest",
+ "halo-core 0.1.1",
+ "halo-rest 0.1.0",
+]
+
+[[package]]
+name = "halo-micro"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00af066656b02ee90fa67e8b2b4c927a29d6b912be21ae0f5293326795561cb9"
+dependencies = [
+ "halo-core 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "halo-rest 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -668,8 +705,32 @@ dependencies = [
  "flate2",
  "form_urlencoded",
  "futures",
- "halo-core",
- "halo-macros",
+ "halo-core 0.1.1",
+ "halo-macros 0.1.0",
+ "http 0.2.12",
+ "hyper 0.14.32",
+ "jsonwebtoken",
+ "matchit",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
+name = "halo-rest"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc810e2bfd810055306377d792c06e140c08c5205ef98a87066012c0eff9b3e4"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "flate2",
+ "form_urlencoded",
+ "futures",
+ "halo-core 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "halo-macros 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "http 0.2.12",
  "hyper 0.14.32",
  "jsonwebtoken",

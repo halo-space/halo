@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use core::context::{AfterFunc, Background, Context, ContextError, WithTimeout};
+use halo_micro::core::context::{AfterFunc, Background, Context, ContextError, Error, WithTimeout};
 use tokio::time::sleep;
 
 #[tokio::main]
@@ -46,7 +46,7 @@ async fn c(ctx: &Context) -> Result<(), ContextError> {
         }
         _ = ctx.done_async() => {
             let err = ctx.err().unwrap_or_else(|| {
-                ContextError::new(core::context::ContextErrorKind::Canceled)
+                ContextError::new(Error::Canceled)
             });
             println!("[C] canceled: {err}");
             Err(err)

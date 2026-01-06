@@ -20,6 +20,8 @@ serde_yaml = "0.9"
 serde_json = "1"
 toml = "0.8"
 tokio = { version = "1", features = ["sync", "macros", "rt", "rt-multi-thread", "time"], optional = false }
+halo-core = "0.1.1"
+halo_micro = { package = "halo-micro", version = "0.1.0" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }

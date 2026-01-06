@@ -3,7 +3,9 @@
 
 use std::time::Duration;
 
-use core::context::{AfterFunc, Background, Context, ContextAware, ContextError, WithTimeout};
+use halo_micro::core::context::{
+    AfterFunc, Background, Context, ContextAware, ContextError, WithTimeout,
+};
 use tokio::time::sleep;
 
 #[tokio::main]

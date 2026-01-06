@@ -9,7 +9,7 @@ mod impls;
 mod state;
 mod value;
 
-pub use error::{CANCELLED, ContextError, ContextErrorKind, DEADLINE_EXCEEDED};
+pub use error::{CANCELLED, ContextError, DEADLINE_EXCEEDED, Error};
 pub use impls::{
     AfterFunc, Background, CancelCauseFunc, CancelFunc, Cause, Context, ContextAware, Done,
     DoneFuture, TODO, WithCancel, WithCancelCause, WithDeadline, WithDeadlineCause, WithTimeout,

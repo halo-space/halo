@@ -4,18 +4,18 @@ use std::sync::Arc;
 
 /// Go 语义下的上下文错误类型。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ContextErrorKind {
+pub enum Error {
     /// 对齐 Go 的 `context canceled`。
     Canceled,
     /// 对齐 Go 的 `context deadline exceeded`。
     DeadlineExceeded,
 }
 
-impl ContextErrorKind {
+impl Error {
     pub const fn as_str(self) -> &'static str {
         match self {
-            ContextErrorKind::Canceled => "context canceled",
-            ContextErrorKind::DeadlineExceeded => "context deadline exceeded",
+            Error::Canceled => "context canceled",
+            Error::DeadlineExceeded => "context deadline exceeded",
         }
     }
 }
@@ -23,20 +23,20 @@ impl ContextErrorKind {
 /// Context 错误，带可选 cause。
 #[derive(Debug, Clone)]
 pub struct ContextError {
-    kind: ContextErrorKind,
+    kind: Error,
     cause: Option<Arc<dyn Error + Send + Sync>>,
 }
 
 impl ContextError {
-    pub const fn new(kind: ContextErrorKind) -> Self {
+    pub const fn new(kind: Error) -> Self {
         Self { kind, cause: None }
     }
 
-    pub fn with_cause(kind: ContextErrorKind, cause: Option<Arc<dyn Error + Send + Sync>>) -> Self {
+    pub fn with_cause(kind: Error, cause: Option<Arc<dyn Error + Send + Sync>>) -> Self {
         Self { kind, cause }
     }
 
-    pub const fn kind(&self) -> ContextErrorKind {
+    pub const fn kind(&self) -> Error {
         self.kind
     }
 
@@ -57,10 +57,12 @@ impl Display for ContextError {
 
 impl Error for ContextError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        self.cause.as_ref().map(|c| &**c as &(dyn Error + 'static))
+        self.cause
+            .as_ref()
+            .map(|c| &**c as &(dyn Error + Send + Sync + 'static))
     }
 }
 
 /// Go 对齐的默认错误实例。
-pub const CANCELLED: ContextError = ContextError::new(ContextErrorKind::Canceled);
-pub const DEADLINE_EXCEEDED: ContextError = ContextError::new(ContextErrorKind::DeadlineExceeded);
+pub const CANCELLED: ContextError = ContextError::new(Error::Canceled);
+pub const DEADLINE_EXCEEDED: ContextError = ContextError::new(Error::DeadlineExceeded);

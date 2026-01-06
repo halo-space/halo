@@ -1,4 +1,4 @@
-use crate::context::error::{CANCELLED, ContextError, ContextErrorKind, DEADLINE_EXCEEDED};
+use crate::context::error::{CANCELLED, ContextError, DEADLINE_EXCEEDED, Error};
 use std::error::Error;
 use std::fmt::{Debug, Formatter};
 use std::sync::atomic::{AtomicU8, Ordering};
@@ -8,20 +8,7 @@ use std::time::{Duration, Instant};
 use tokio::runtime::Handle;
 use tokio::sync::Notify;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CancelKind {
-    Canceled,
-    Deadline,
-}
-
-impl CancelKind {
-    pub const fn as_error_kind(self) -> ContextErrorKind {
-        match self {
-            CancelKind::Canceled => ContextErrorKind::Canceled,
-            CancelKind::Deadline => ContextErrorKind::DeadlineExceeded,
-        }
-    }
-}
+pub type CancelKind = Error;
 
 /// 取消状态核心。
 pub struct CancelState {
@@ -154,11 +141,11 @@ impl CancelState {
         match self.status.load(Ordering::Acquire) {
             0 => None,
             1 => Some(ContextError::with_cause(
-                ContextErrorKind::Canceled,
+                Error::Canceled,
                 self.cause.lock().unwrap().clone(),
             )),
             _ => Some(ContextError::with_cause(
-                ContextErrorKind::DeadlineExceeded,
+                Error::DeadlineExceeded,
                 self.cause.lock().unwrap().clone(),
             )),
         }
@@ -172,10 +159,14 @@ impl CancelState {
         self.status.load(Ordering::Acquire) != 0
     }
 
-    pub fn cancel(self: &Arc<Self>, kind: CancelKind, cause: Option<Arc<dyn Error + Send + Sync>>) {
+    pub fn cancel(
+        self: &Arc<Self>,
+        kind: CancelKind,
+        cause: Option<Arc<dyn Error + Send + Sync>>,
+    ) {
         let new = match kind {
             CancelKind::Canceled => 1,
-            CancelKind::Deadline => 2,
+            CancelKind::DeadlineExceeded => 2,
         };
         if self
             .status
@@ -189,7 +180,7 @@ impl CancelState {
             *guard = cause.or_else(|| {
                 let err = match kind {
                     CancelKind::Canceled => CANCELLED,
-                    CancelKind::Deadline => DEADLINE_EXCEEDED,
+                    CancelKind::DeadlineExceeded => DEADLINE_EXCEEDED,
                 };
                 Some(Arc::new(err) as Arc<dyn Error + Send + Sync>)
             });
