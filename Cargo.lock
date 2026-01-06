@@ -631,6 +631,20 @@ dependencies = [
 [[package]]
 name = "halo-core"
 version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fcf62413ce02e82eb50470edd3199f37384440cc372d8533a315f6c060a51449"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tokio",
+ "toml",
+]
+
+[[package]]
+name = "halo-core"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "criterion",
@@ -642,20 +656,6 @@ dependencies = [
  "serde_yaml",
  "tokio",
  "tokio-util",
- "toml",
-]
-
-[[package]]
-name = "halo-core"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcf62413ce02e82eb50470edd3199f37384440cc372d8533a315f6c060a51449"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
- "serde_yaml",
- "tokio",
  "toml",
 ]
 
@@ -683,7 +683,7 @@ dependencies = [
 name = "halo-micro"
 version = "0.1.0"
 dependencies = [
- "halo-core 0.1.1",
+ "halo-core 0.1.2",
  "halo-rest 0.1.0",
 ]
 
@@ -693,7 +693,7 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00af066656b02ee90fa67e8b2b4c927a29d6b912be21ae0f5293326795561cb9"
 dependencies = [
- "halo-core 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "halo-core 0.1.1",
  "halo-rest 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -708,7 +708,7 @@ dependencies = [
  "flate2",
  "form_urlencoded",
  "futures",
- "halo-core 0.1.1",
+ "halo-core 0.1.2",
  "halo-macros 0.1.0",
  "http 0.2.12",
  "hyper 0.14.32",
@@ -732,7 +732,7 @@ dependencies = [
  "flate2",
  "form_urlencoded",
  "futures",
- "halo-core 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "halo-core 0.1.1",
  "halo-macros 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "http 0.2.12",
  "hyper 0.14.32",
