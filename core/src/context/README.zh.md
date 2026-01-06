@@ -1,6 +1,6 @@
 ## Go 风格 Context（halo-core）
 
-本模块等价 Go `context`：取消传递、截止/超时、值链、AfterFunc 回调，零第三方依赖、开销极低。
+本模块等价 Go `context`：取消传递、截止/超时、值链、AfterFunc 回调。
 
 ### 特性
 - 背景根：`Background()/TODO()`

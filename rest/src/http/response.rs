@@ -16,8 +16,7 @@ pub fn ok_json<T: Serialize>(val: &T) -> anyhow::Result<Response<Body>> {
     Ok(Response::builder()
         .status(StatusCode::OK)
         .header(http::header::CONTENT_TYPE, "application/json")
-        .body(Body::from(body))
-        .unwrap())
+        .body(Body::from(body))?)
 }
 
 /// 400 Bad Request with text body.

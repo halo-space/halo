@@ -28,7 +28,7 @@ pub async fn read_json<T: DeserializeOwned>(req: &mut Request<Body>) -> anyhow::
 
 /// Parse `application/json` body with size limit, return `None` if not json.
 /// Parse JSON body with size limit; return None if not JSON.
-pub async fn parse_json_body<T: DeserializeOwned>(
+pub async fn parse_json<T: DeserializeOwned>(
     req: &mut Request<Body>,
 ) -> anyhow::Result<Option<T>> {
     if !with_json_body(req) {
@@ -135,7 +135,7 @@ pub async fn parse<T: DeserializeOwned>(req: &mut Request<Body>) -> anyhow::Resu
         })
         .unwrap_or_default();
     let form_map = get_form_values(req).await?;
-    let json_body: Option<serde_json::Value> = parse_json_body(req).await?;
+    let json_body: Option<serde_json::Value> = parse_json(req).await?;
 
     let mut merged = serde_json::Map::new();
     merge_map(&mut merged, form_map_to_json(path_map));

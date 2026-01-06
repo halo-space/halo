@@ -3,7 +3,7 @@
 the Chinese guide here: [README.zh.md](README.zh.md).
 
 
-This module mirrors Go’s `context` package: cancellation propagation, deadlines/timeouts, values, and AfterFunc callbacks — with zero external deps and low overhead.
+This module mirrors Go’s `context` package: cancellation propagation, deadlines/timeouts, values, and AfterFunc callbacks.
 
 ### Features
 - Background/TODO roots.

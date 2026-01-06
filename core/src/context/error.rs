@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
@@ -24,7 +23,7 @@ impl Error {
 #[derive(Debug, Clone)]
 pub struct ContextError {
     kind: Error,
-    cause: Option<Arc<dyn Error + Send + Sync>>,
+    cause: Option<Arc<dyn std::error::Error + Send + Sync>>,
 }
 
 impl ContextError {
@@ -32,7 +31,10 @@ impl ContextError {
         Self { kind, cause: None }
     }
 
-    pub fn with_cause(kind: Error, cause: Option<Arc<dyn Error + Send + Sync>>) -> Self {
+    pub fn with_cause(
+        kind: Error,
+        cause: Option<Arc<dyn std::error::Error + Send + Sync>>,
+    ) -> Self {
         Self { kind, cause }
     }
 
@@ -40,7 +42,7 @@ impl ContextError {
         self.kind
     }
 
-    pub fn cause(&self) -> Option<&Arc<dyn Error + Send + Sync>> {
+    pub fn cause(&self) -> Option<&Arc<dyn std::error::Error + Send + Sync>> {
         self.cause.as_ref()
     }
 }
@@ -55,11 +57,11 @@ impl Display for ContextError {
     }
 }
 
-impl Error for ContextError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
+impl std::error::Error for ContextError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         self.cause
             .as_ref()
-            .map(|c| &**c as &(dyn Error + Send + Sync + 'static))
+            .map(|c| &**c as &(dyn std::error::Error + 'static))
     }
 }
 

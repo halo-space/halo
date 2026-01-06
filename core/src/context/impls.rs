@@ -1,9 +1,8 @@
 #![allow(non_snake_case)]
 use crate::context::error::{CANCELLED, ContextError, DEADLINE_EXCEEDED, Error};
-use crate::context::state::{CancelKind, CancelState, DoneHandle, StopFunc};
+use crate::context::state::{CancelState, DoneHandle, StopFunc};
 use crate::context::value::ValueKey;
 use std::any::Any;
-use std::error::Error;
 use std::fmt::{Debug, Formatter};
 use std::future::Future;
 use std::pin::Pin;
@@ -17,9 +16,9 @@ use tokio::runtime::Handle;
 /// 与 Go `context` 包一致的取消函数。
 pub type CancelFunc = Box<dyn FnOnce() + Send + 'static>;
 /// 与 Go `context` 包一致的带 cause 取消函数。
-pub type CancelCauseFunc = Box<dyn FnOnce(Option<Arc<dyn Error + Send + Sync>>) + Send + 'static>;
+pub type CancelCauseFunc =
+    Box<dyn FnOnce(Option<Arc<dyn std::error::Error + Send + Sync>>) + Send + 'static>;
 
-#[derive(Clone)]
 pub struct Context {
     inner: Arc<ContextInner>,
 }
@@ -32,20 +31,17 @@ enum ContextInner {
     WithoutCancel(WithoutCancelCtx),
 }
 
-#[derive(Clone)]
 struct CancelCtx {
     parent: Context,
     state: Arc<CancelState>,
 }
 
-#[derive(Clone)]
 struct DeadlineCtx {
     parent: Context,
     state: Arc<CancelState>,
     deadline: Instant,
 }
 
-#[derive(Clone)]
 struct WithoutCancelCtx {
     parent: Context,
 }
@@ -54,6 +50,25 @@ struct ValueCtx {
     parent: Context,
     key: Arc<dyn ValueKey>,
     value: Arc<dyn Any + Send + Sync>,
+}
+
+impl Clone for Context {
+    fn clone(&self) -> Self {
+        if let Some(state) = self.state_arc_opt() {
+            state.add_handle();
+        }
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+impl Drop for Context {
+    fn drop(&mut self) {
+        if let Some(state) = self.state_arc_opt() {
+            state.release_handle();
+        }
+    }
 }
 
 impl Debug for Context {
@@ -147,7 +162,7 @@ impl Context {
         }
     }
 
-    pub fn cause(&self) -> Option<Arc<dyn StdError + Send + Sync>> {
+    pub fn cause(&self) -> Option<Arc<dyn std::error::Error + Send + Sync>> {
         match self.inner.as_ref() {
             ContextInner::Empty => None,
             ContextInner::Cancelable(ctx) => ctx.state.cause(),
@@ -170,6 +185,24 @@ impl Context {
             ContextInner::Cancelable(ctx) => ctx.parent.value(key),
             ContextInner::Deadline(ctx) => ctx.parent.value(key),
             ContextInner::WithoutCancel(ctx) => ctx.parent.value(key),
+        }
+    }
+
+    fn state_arc(&self) -> Arc<CancelState> {
+        match self.inner.as_ref() {
+            ContextInner::Cancelable(ctx) => ctx.state.clone(),
+            ContextInner::Deadline(ctx) => ctx.state.clone(),
+            ContextInner::Value(ctx) => ctx.parent.state_arc(),
+            ContextInner::WithoutCancel(_) | ContextInner::Empty => CancelState::new_root(),
+        }
+    }
+
+    fn state_arc_opt(&self) -> Option<Arc<CancelState>> {
+        match self.inner.as_ref() {
+            ContextInner::Cancelable(ctx) => Some(ctx.state.clone()),
+            ContextInner::Deadline(ctx) => Some(ctx.state.clone()),
+            ContextInner::Value(ctx) => ctx.parent.state_arc_opt(),
+            ContextInner::WithoutCancel(_) | ContextInner::Empty => None,
         }
     }
 }
@@ -201,13 +234,13 @@ impl Future for DoneFuture {
 }
 
 pub fn Background() -> Context {
-    static BG: OnceLock<Context> = OnceLock::new();
-    BG.get_or_init(Context::empty).clone()
+    static BACKGROUND_CTX: OnceLock<Context> = OnceLock::new();
+    BACKGROUND_CTX.get_or_init(Context::empty).clone()
 }
 
 pub fn TODO() -> Context {
-    static TD: OnceLock<Context> = OnceLock::new();
-    TD.get_or_init(Context::empty).clone()
+    static TODO_CTX: OnceLock<Context> = OnceLock::new();
+    TODO_CTX.get_or_init(Context::empty).clone()
 }
 
 pub fn WithoutCancel(parent: Context) -> Context {
@@ -231,13 +264,18 @@ pub fn WithCancel(parent: Context) -> (Context, CancelFunc) {
 }
 
 pub fn WithCancelCause(parent: Context) -> (Context, CancelCauseFunc) {
-    let state = CancelState::new();
+    let state = match parent.inner.as_ref() {
+        ContextInner::Empty => CancelState::new_root(),
+        _ => CancelState::child_of(&parent.state_arc()),
+    };
     propagate_parent(parent.clone(), state.clone());
     let ctx = Context::cancelable(parent, state.clone());
-    let cancel = Box::new(move |cause: Option<Arc<dyn Error + Send + Sync>>| {
-        let final_cause = cause.or_else(default_canceled);
-        state.cancel(CancelKind::Canceled, final_cause);
-    });
+    let cancel = Box::new(
+        move |cause: Option<Arc<dyn std::error::Error + Send + Sync>>| {
+            let final_cause = cause.or_else(default_canceled);
+            state.cancel(Error::Canceled, final_cause);
+        },
+    );
     (ctx, cancel)
 }
 
@@ -248,21 +286,24 @@ pub fn WithDeadline(parent: Context, deadline: Instant) -> (Context, CancelFunc)
 pub fn WithDeadlineCause(
     parent: Context,
     deadline: Instant,
-    cause: Option<Arc<dyn Error + Send + Sync>>,
+    cause: Option<Arc<dyn std::error::Error + Send + Sync>>,
 ) -> (Context, CancelFunc) {
     let effective_deadline = match parent.deadline() {
         Some(parent_deadline) if parent_deadline <= deadline => parent_deadline,
         _ => deadline,
     };
 
-    let state = CancelState::new();
+    let state = match parent.inner.as_ref() {
+        ContextInner::Empty => CancelState::new_root(),
+        _ => CancelState::child_of(&parent.state_arc()),
+    };
     let ctx = Context::new_deadline(parent.clone(), state.clone(), effective_deadline);
     propagate_parent(parent, state.clone());
     start_deadline_timer(state.clone(), effective_deadline, cause.clone());
 
     let cancel = Box::new(move || {
         let cancel_cause = cause.clone().or_else(default_canceled);
-        state.cancel(CancelKind::Canceled, cancel_cause);
+        state.cancel(Error::Canceled, cancel_cause);
     });
     (ctx, cancel)
 }
@@ -274,7 +315,7 @@ pub fn WithTimeout(parent: Context, timeout: Duration) -> (Context, CancelFunc) 
 pub fn WithTimeoutCause(
     parent: Context,
     timeout: Duration,
-    cause: Option<Arc<dyn Error + Send + Sync>>,
+    cause: Option<Arc<dyn std::error::Error + Send + Sync>>,
 ) -> (Context, CancelFunc) {
     WithDeadlineCause(parent, Instant::now() + timeout, cause)
 }
@@ -283,7 +324,7 @@ pub fn AfterFunc(ctx: &Context, f: impl FnOnce() + Send + 'static) -> StopFunc {
     ctx.done().register(f)
 }
 
-pub fn Cause(ctx: &Context) -> Option<Arc<dyn StdError + Send + Sync>> {
+pub fn Cause(ctx: &Context) -> Option<Arc<dyn std::error::Error + Send + Sync>> {
     ctx.cause()
 }
 
@@ -308,11 +349,11 @@ where
 fn start_deadline_timer(
     state: Arc<CancelState>,
     deadline: Instant,
-    cause: Option<Arc<dyn Error + Send + Sync>>,
+    cause: Option<Arc<dyn std::error::Error + Send + Sync>>,
 ) {
     if deadline <= Instant::now() {
         let deadline_cause = cause.clone().or_else(default_deadline);
-        state.cancel(CancelKind::Deadline, deadline_cause);
+        state.cancel(Error::DeadlineExceeded, deadline_cause);
         return;
     }
     let sleep_dur = deadline.saturating_duration_since(Instant::now());
@@ -320,13 +361,13 @@ fn start_deadline_timer(
         handle.spawn(async move {
             tokio::time::sleep(sleep_dur).await;
             let deadline_cause = cause.clone().or_else(default_deadline);
-            state.cancel(CancelKind::Deadline, deadline_cause);
+            state.cancel(Error::DeadlineExceeded, deadline_cause);
         });
     } else {
         thread::spawn(move || {
             thread::sleep(sleep_dur);
             let deadline_cause = cause.clone().or_else(default_deadline);
-            state.cancel(CancelKind::Deadline, deadline_cause);
+            state.cancel(Error::DeadlineExceeded, deadline_cause);
         });
     }
 }
@@ -339,37 +380,31 @@ fn propagate_parent(parent: Context, state: Arc<CancelState>) {
         let kind = map_error_kind(&err);
         let inherited = parent
             .cause()
-            .or_else(|| Some(Arc::new(err) as Arc<dyn Error + Send + Sync>));
+            .or_else(|| Some(Arc::new(err) as Arc<dyn std::error::Error + Send + Sync>));
         state.cancel(kind, inherited);
         return;
     }
     let done = parent.done();
     done.register(move || {
         let err = parent.err();
-        let kind = err
-            .as_ref()
-            .map(map_error_kind)
-            .unwrap_or(CancelKind::Canceled);
+        let kind = err.as_ref().map(map_error_kind).unwrap_or(Error::Canceled);
         let inherited = parent
             .cause()
-            .or_else(|| err.map(|e| Arc::new(e) as Arc<dyn StdError + Send + Sync>));
+            .or_else(|| err.map(|e| Arc::new(e) as Arc<dyn std::error::Error + Send + Sync>));
         state.cancel(kind, inherited);
     });
 }
 
-fn map_error_kind(err: &ContextError) -> CancelKind {
-    match err.kind() {
-        Error::Canceled => CancelKind::Canceled,
-        Error::DeadlineExceeded => CancelKind::DeadlineExceeded,
-    }
+fn map_error_kind(err: &ContextError) -> Error {
+    err.kind()
 }
 
-fn default_canceled() -> Option<Arc<dyn StdError + Send + Sync>> {
-    Some(Arc::new(CANCELLED) as Arc<dyn Error + Send + Sync>)
+fn default_canceled() -> Option<Arc<dyn std::error::Error + Send + Sync>> {
+    Some(Arc::new(CANCELLED) as Arc<dyn std::error::Error + Send + Sync>)
 }
 
-fn default_deadline() -> Option<Arc<dyn StdError + Send + Sync>> {
-    Some(Arc::new(DEADLINE_EXCEEDED) as Arc<dyn Error + Send + Sync>)
+fn default_deadline() -> Option<Arc<dyn std::error::Error + Send + Sync>> {
+    Some(Arc::new(DEADLINE_EXCEEDED) as Arc<dyn std::error::Error + Send + Sync>)
 }
 
 trait MapCancel<T> {
@@ -428,10 +463,10 @@ mod tests {
                 f.write_str("mine")
             }
         }
-        impl Error for MyErr {}
+        impl std::error::Error for MyErr {}
 
         let (ctx, cancel) = WithCancelCause(Background());
-        let err = Arc::new(MyErr) as Arc<dyn Error + Send + Sync>;
+        let err = Arc::new(MyErr) as Arc<dyn std::error::Error + Send + Sync>;
         cancel(Some(err.clone()));
         assert_canceled(&ctx);
         let cause = Cause(&ctx).unwrap();
@@ -464,7 +499,7 @@ mod tests {
                 f.write_str("cause")
             }
         }
-        impl Error for CauseErr {}
+        impl std::error::Error for CauseErr {}
 
         let (ctx, cancel) = WithDeadlineCause(
             Background(),

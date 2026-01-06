@@ -8,10 +8,8 @@ repository = "https://github.com/halo-space/halo.git"
 readme = "../README.md"
 
 [lib]
-# 注意：本项目选择直接使用 crate 名 `core`。
-# 这样在其它 crate 中可以通过 `core::...` 引用本项目的 core。
-# 如需访问标准库对应能力，优先使用 `std::...`，必要时在本 crate 内做封装。
-name = "core"
+# 为避免与 std::core 冲突，将 crate 名设置为 halo_core。
+name = "halo_core"
 
 [dependencies]
 anyhow = "1"
@@ -20,10 +18,39 @@ serde_yaml = "0.9"
 serde_json = "1"
 toml = "0.8"
 tokio = { version = "1", features = ["sync", "macros", "rt", "rt-multi-thread", "time"], optional = false }
-halo-core = "0.1.1"
 halo_micro = { package = "halo-micro", version = "0.1.0" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+tokio-util = { version = "0.7", features = ["full"] }
+criterion = "0.5"
+
+[[bench]]
+name = "cancel_bench"
+harness = false
+
+[[bench]]
+name = "deadline_bench"
+harness = false
+
+[[bench]]
+name = "value_bench"
+harness = false
+
+[[bench]]
+name = "done_bench"
+harness = false
+
+[[bench]]
+name = "afterfunc_bench"
+harness = false
+
+[[bench]]
+name = "contextaware_bench"
+harness = false
+
+[[bench]]
+name = "without_cancel_bench"
+harness = false
 
 

@@ -5,7 +5,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
-use halo_micro::core::context::{AfterFunc, Background, Context, ContextError, Error, WithTimeout};
+use halo_core::context::{AfterFunc, Background, Context, ContextError, Error, WithTimeout};
 
 fn main() {
     let (ctx, cancel) = WithTimeout(Background(), Duration::from_secs(5));
@@ -15,7 +15,7 @@ fn main() {
     drop(done_flag);
 
     let (tx, rx) = mpsc::channel();
-    let worker_ctx = ctx.clone();
+    let worker_ctx: Context = ctx.clone();
     thread::spawn(move || {
         let _ = tx.send(a(worker_ctx));
     });
