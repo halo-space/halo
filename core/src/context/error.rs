@@ -104,8 +104,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn new_err_returns_any_with_message() {
-        let err = Error::new_err("oops");
+    fn new_returns_any_with_message() {
+        let err = Error::new("oops");
         assert_eq!(err.kind(), Error::Any);
         assert_eq!(format!("{err}"), "context error: oops");
         let cause = err.cause().expect("has cause");

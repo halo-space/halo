@@ -3,7 +3,7 @@ use core::context::{
 };
 use std::time::Duration;
 
-// 使用自定义消息构造 ContextError（Error::new_err）。
+// 使用自定义消息构造 ContextError（Error::new）。
 async fn work(ctx: Context) -> Result<(), ContextError> {
     let val_arc = ctx
         .value(&"user_id")
