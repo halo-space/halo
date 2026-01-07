@@ -1,7 +1,6 @@
 //! Redis 配置，参考 go-zero `core/stores/redis/conf.go`。
 //! 仅定义配置与校验逻辑，实际客户端连接可按需扩展。
 
-use std::fmt::{Display, Formatter};
 use std::time::Duration;
 use thiserror::Error;
 
