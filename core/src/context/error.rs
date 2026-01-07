@@ -20,6 +20,11 @@ impl Error {
             Error::Any => "context error",
         }
     }
+
+    /// 构造携带静态字符串消息的 `ContextError`（等价 Go 的 `errors::New`）。
+    pub fn new(msg: &'static str) -> ContextError {
+        ContextError::new_message(msg)
+    }
 }
 
 /// Context 错误，带可选 cause。
@@ -91,5 +96,23 @@ pub const DEADLINE_EXCEEDED: ContextError = ContextError::new(Error::DeadlineExc
 impl From<Error> for ContextError {
     fn from(kind: Error) -> Self {
         ContextError::new(kind)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_err_returns_any_with_message() {
+        let err = Error::new_err("oops");
+        assert_eq!(err.kind(), Error::Any);
+        assert_eq!(format!("{err}"), "context error: oops");
+        let cause = err.cause().expect("has cause");
+        let msg = cause
+            .downcast_ref::<StaticStrError>()
+            .map(|e| e.0)
+            .expect("downcast");
+        assert_eq!(msg, "oops");
     }
 }

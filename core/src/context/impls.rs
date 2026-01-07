@@ -335,14 +335,16 @@ pub async fn Done(ctx: Context) -> Option<ContextError> {
 }
 
 /// 并发等待业务 Future 与 ctx 完成（取消/超时）。ctx 完成时优先返回其错误。
-pub async fn ContextAware<T, F>(ctx: Context, fut: F) -> Result<T, ContextError>
+/// 支持自定义错误类型，只需实现 `From<ContextError>`。
+pub async fn ContextAware<T, E, F>(ctx: Context, fut: F) -> Result<T, E>
 where
-    F: Future<Output = Result<T, ContextError>>,
+    F: Future<Output = Result<T, E>>,
+    E: From<ContextError>,
 {
     let done = ctx.done_async();
     tokio::select! {
         res = fut => res,
-        _ = done => Err(ctx.err().unwrap_or(CANCELLED)),
+        _ = done => Err(ctx.err().unwrap_or(CANCELLED).into()),
     }
 }
 
@@ -549,5 +551,44 @@ mod tests {
     fn after_func_stop_on_never_done() {
         let stop = AfterFunc(&Background(), || panic!("should not run"));
         assert!(!stop.Stop());
+    }
+
+    #[derive(Debug)]
+    enum AppErr {
+        Ctx(ContextError),
+    }
+
+    impl From<ContextError> for AppErr {
+        fn from(err: ContextError) -> Self {
+            Self::Ctx(err)
+        }
+    }
+
+    impl std::fmt::Display for AppErr {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                AppErr::Ctx(err) => write!(f, "ctx: {err}"),
+            }
+        }
+    }
+
+    impl std::error::Error for AppErr {}
+
+    #[test]
+    fn context_aware_allows_custom_error_type() {
+        let rt = tokio::runtime::Runtime::new().expect("runtime");
+        rt.block_on(async {
+            let (ctx, _) = WithTimeout(Background(), Duration::from_millis(20));
+            let res: Result<(), AppErr> = ContextAware(ctx, async {
+                tokio::time::sleep(Duration::from_millis(50)).await;
+                Ok(())
+            })
+            .await;
+
+            match res {
+                Err(AppErr::Ctx(err)) => assert_eq!(err.kind(), Error::DeadlineExceeded),
+                other => panic!("unexpected result: {other:?}"),
+            }
+        });
     }
 }
