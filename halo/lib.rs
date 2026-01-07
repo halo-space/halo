@@ -1,7 +1,7 @@
 //! `halo_micro` facade.
 //!
 //! 推荐使用方式：
-//! - `halo_micro::core::...`
+//! - `halo_micro::infra::...`
 //! - `halo_micro::rest::...`
 //!
 //! # crates.io package 名
@@ -12,16 +12,16 @@
 //! ```
 //!
 //! 注意：
-//! - 对外统一通过 `halo_micro::core` / `halo_micro::rest` 访问。
+//! - 对外统一通过 `halo_micro::infra` / `halo_micro::rest` 访问。
 
-/// `halo_micro::core::*` -> 本项目 `core` crate。
-pub mod core {
-    pub use ::core::*;
+/// `halo_micro::infra::*` -> 本项目 `infra` crate。
+pub mod infra {
+    pub use infra::*;
 }
 
 /// 兼容 go-zero 风格：`halo_micro::conf::must_load(...)`。
 pub mod conf {
-    pub use ::core::conf::*;
+    pub use infra::conf::*;
 }
 
 /// `halo_micro::rest::*` -> `rest` crate。
@@ -32,9 +32,8 @@ pub mod rest {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn facade_types_should_point_to_workspace_core() {
-        // 如果这里能赋值成功，就证明 `halo_micro::conf` 导出的是 workspace 的 `core::conf`，
-        // 而不是标准库的 `core`。
-        let _: ::core::conf::Format = crate::conf::Format::Yaml;
+    fn facade_types_should_point_to_workspace_infra() {
+        // 如果这里能赋值成功，就证明 `halo_micro::conf` 导出的是 workspace 的 `infra::conf`，
+        let _: infra::conf::Format = crate::conf::Format::Yaml;
     }
 }

@@ -4,7 +4,7 @@
 
 use std::time::Duration;
 
-use core::context::{Background, Context, ContextAware, ContextError, WithTimeout};
+use infra::context::{Background, Context, ContextAware, ContextError, WithTimeout};
 use tokio::time::sleep;
 
 #[tokio::main]

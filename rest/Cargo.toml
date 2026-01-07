@@ -28,7 +28,7 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 flate2 = "1"
 tokio-util = "0.7"
 
-core = { package = "halo-core", version = "0.1.0", path = "../core" }
+infra = { package = "halo-infra", version = "0.1.0", path = "../infra" }
 macros = { package = "halo-macros", version = "0.1.0", path = "../macros" }
 
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }

@@ -1,4 +1,4 @@
-use core::service::ServiceConf;
+use infra::service::ServiceConf;
 use serde::{Deserialize, Serialize};
 
 /// MiddlewaresConf with defaults set to true.
@@ -327,7 +327,7 @@ impl RestConf {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::service::Mode;
+    use infra::service::Mode;
 
     #[test]
     fn defaults_should_work() {

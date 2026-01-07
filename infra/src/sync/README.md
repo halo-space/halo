@@ -16,10 +16,10 @@
 
 ### 使用示例
 ```rust
-use core::sync::singleflight::SingleFlight;
+use infra::sync::singleflight::SingleFlight;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use core::context::Background;
+use infra::context::Background;
 
 #[tokio::main]
 async fn main() {
@@ -65,7 +65,7 @@ async fn main() {
     group.forget(&"user:42").await;
 
     // 搭配 Context 取消/超时（仅影响等待方，不中断执行任务）
-    use core::context::{Background, WithTimeout};
+    use infra::context::{Background, WithTimeout};
     let (ctx, _) = WithTimeout(Background(), std::time::Duration::from_millis(50));
     let res = group
         .done(&ctx, Arc::from("user:cancel"), || async {
@@ -84,6 +84,6 @@ async fn main() {
 - 若需要等待者超时/取消，可在调用方使用 `tokio::select!` 搭配自身超时，不影响主执行任务。
  
 ### 基准
-- `core/benches/singleflight_bench.rs`（criterion，n∈{1,2,4,8}）。
-- 运行：`cargo bench -p halo-core --bench singleflight_bench`
+- `infra/benches/singleflight_bench.rs`（criterion，n∈{1,2,4,8}）。
+- 运行：`cargo bench -p halo-infra --bench singleflight_bench`
 

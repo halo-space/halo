@@ -31,7 +31,7 @@ halo/
 
 本仓库是 workspace，发布顺序固定为：
 
-- `halo-core`
+- `halo-infra`（原 `halo-core`）
 - `halo-rest`
 - `halo-micro`（**package 名**；lib crate 名为 `halo_micro`）
 

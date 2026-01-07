@@ -17,7 +17,7 @@ path = "lib.rs"
 default = []
 
 [dependencies]
-core = { package = "halo-core", version = "0.1.0", path = "../core" }
+infra = { package = "halo-infra", version = "0.1.0", path = "../infra" }
 rest = { package = "halo-rest", version = "0.1.0", path = "../rest" }
 
 

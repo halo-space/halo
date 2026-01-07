@@ -2,7 +2,7 @@ use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_m
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
-use core::sync::singleflight::SingleFlight;
+use infra::sync::singleflight::SingleFlight;
 
 fn bench_singleflight(c: &mut Criterion) {
     let rt = Runtime::new().expect("rt");
@@ -19,7 +19,7 @@ fn bench_singleflight(c: &mut Criterion) {
                         let g = group.clone();
                         let key: Arc<str> = Arc::from("k");
                         handles.push(tokio::spawn(async move {
-                            g.done(&core::context::Background(), key, || async {
+                            g.done(&infra::context::Background(), key, || async {
                                 Ok::<_, ()>(1u32)
                             })
                             .await
@@ -42,7 +42,7 @@ fn bench_singleflight(c: &mut Criterion) {
                         let g = group.clone();
                         handles.push(tokio::spawn(async move {
                             let key: Arc<str> = Arc::from(format!("k-{i}"));
-                            g.done(&core::context::Background(), key, || async {
+                            g.done(&infra::context::Background(), key, || async {
                                 Ok::<_, ()>(1u32)
                             })
                             .await

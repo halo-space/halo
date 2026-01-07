@@ -15,7 +15,7 @@ usage() {
 
 默认发布顺序：
   1) halo-macros（proc-macro crate）
-  2) halo-core
+  2) halo-infra（原 halo-core）
   3) halo-rest
   4) halo-micro（lib crate 名为 halo_micro；使用方依赖写 halo_micro = { package = "halo-micro", ... }）
 
@@ -82,7 +82,7 @@ fi
 
 packages=(
   "halo-macros"
-  "halo-core"
+  "halo-infra"
   "halo-rest"
   "halo-micro"
 )

@@ -1,4 +1,4 @@
-## Go-style Context for Rust (halo-core)
+## Go-style Context for Rust (halo-infra)
 
 Chinese guide: [README.zh.md](README.zh.md).
 
@@ -15,7 +15,7 @@ This module mirrors Go’s `context` package: cancellation propagation, deadline
 
 ### Quickstart
 ```rust
-use halo_micro::core::context::{
+use halo_micro::infra::context::{
     Background, WithTimeout, WithValue, AfterFunc, ContextAware, ContextError,
 };
 use std::time::Duration;
@@ -40,7 +40,7 @@ async fn work() -> Result<(), ContextError> {
 
 ### Blocking usage
 ```rust
-use halo_micro::core::context::{Background, WithCancel, AfterFunc};
+use halo_micro::infra::context::{Background, WithCancel, AfterFunc};
 
 let (ctx, cancel) = WithCancel(Background());
 let cb = AfterFunc(&ctx, || println!("canceled"));
@@ -65,7 +65,7 @@ cb.stop();
 ### Feature-by-feature snippets
 Cancellation & cause
 ```rust
-use halo_micro::core::context::{Background, WithCancel, WithCancelCause};
+use halo_micro::infra::context::{Background, WithCancel, WithCancelCause};
 use std::sync::Arc;
 
 fn cancel_demo() {
@@ -79,7 +79,7 @@ fn cancel_demo() {
 
 Deadline / Timeout
 ```rust
-use halo_micro::core::context::{Background, WithDeadline};
+use halo_micro::infra::context::{Background, WithDeadline};
 use std::time::{Duration, Instant};
 
 async fn deadline_demo() {
@@ -93,7 +93,7 @@ async fn deadline_demo() {
 
 Values
 ```rust
-use halo_micro::core::context::{Background, WithValue};
+use halo_micro::infra::context::{Background, WithValue};
 
 fn value_demo() {
     let ctx = WithValue(Background(), "user_id", 42u64);
@@ -104,7 +104,7 @@ fn value_demo() {
 
 AfterFunc + Stop
 ```rust
-use halo_micro::core::context::{AfterFunc, Background, WithCancel};
+use halo_micro::infra::context::{AfterFunc, Background, WithCancel};
 
 fn after_func_demo() {
     let (ctx, cancel) = WithCancel(Background());
@@ -133,7 +133,7 @@ async fn main() -> Result<(), ContextError> {
 
 WithoutCancel
 ```rust
-use halo_micro::core::context::{Background, WithCancel, WithoutCancel};
+use halo_micro::infra::context::{Background, WithCancel, WithoutCancel};
 
 fn without_cancel_demo() {
     let (ctx, cancel) = WithCancel(Background());

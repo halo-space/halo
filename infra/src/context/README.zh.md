@@ -1,4 +1,4 @@
-## Go 风格 Context（halo-core）
+## Go 风格 Context（halo-infra）
 
 本模块等价 Go `context`：取消传递、截止/超时、值链、AfterFunc 回调。
 
@@ -13,7 +13,7 @@
 
 ### 快速上手
 ```rust
-use core::context::{
+use infra::context::{
     Background, WithTimeout, WithValue, AfterFunc, ContextAware, ContextError,
 };
 use std::time::Duration;
@@ -36,7 +36,7 @@ async fn work() -> Result<(), ContextError> {
 
 ### 同步场景
 ```rust
-use core::context::{Background, WithCancel, AfterFunc};
+use infra::context::{Background, WithCancel, AfterFunc};
 
 let (ctx, cancel) = WithCancel(Background());
 let cb = AfterFunc(&ctx, || println!("canceled"));
@@ -59,7 +59,7 @@ cb.stop();
 ### 分特性示例
 取消与 cause
 ```rust
-use core::context::{Background, WithCancel, WithCancelCause};
+use infra::context::{Background, WithCancel, WithCancelCause};
 use std::sync::Arc;
 
 fn cancel_demo() {
@@ -72,7 +72,7 @@ fn cancel_demo() {
 
 截止 / 超时
 ```rust
-use core::context::{Background, WithDeadline};
+use infra::context::{Background, WithDeadline};
 use std::time::{Duration, Instant};
 
 async fn deadline_demo() {
@@ -84,7 +84,7 @@ async fn deadline_demo() {
 
 值传递
 ```rust
-use core::context::{Background, WithValue};
+use infra::context::{Background, WithValue};
 
 fn value_demo() {
     let ctx = WithValue(Background(), "user_id", 42u64);
@@ -95,7 +95,7 @@ fn value_demo() {
 
 AfterFunc + Stop
 ```rust
-use core::context::{AfterFunc, Background, WithCancel};
+use infra::context::{AfterFunc, Background, WithCancel};
 
 fn after_func_demo() {
     let (ctx, cancel) = WithCancel(Background());
@@ -123,7 +123,7 @@ async fn main() -> Result<(), ContextError> {
 
 脱离取消
 ```rust
-use core::context::{Background, WithCancel, WithoutCancel};
+use infra::context::{Background, WithCancel, WithoutCancel};
 
 fn without_cancel_demo() {
     let (ctx, cancel) = WithCancel(Background());
