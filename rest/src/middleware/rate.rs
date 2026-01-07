@@ -1,3 +1,4 @@
+use crate::http::response::build_response;
 use crate::middleware::{Middleware, middleware};
 use hyper::Body;
 use std::sync::Arc;
@@ -13,10 +14,10 @@ pub fn rate_limit(permits_per_sec: u64, burst: u64) -> Middleware {
             if bucket.acquire().await {
                 next.call(req).await
             } else {
-                http::Response::builder()
-                    .status(http::StatusCode::TOO_MANY_REQUESTS)
-                    .body(Body::from("rate limited"))
-                    .unwrap()
+                build_response(
+                    http::StatusCode::TOO_MANY_REQUESTS,
+                    Body::from("rate limited"),
+                )
             }
         }
     })
@@ -34,10 +35,10 @@ pub fn concurrency_limit(limit: usize) -> Middleware {
                 drop(permit);
                 resp
             } else {
-                http::Response::builder()
-                    .status(http::StatusCode::SERVICE_UNAVAILABLE)
-                    .body(Body::from("too many in-flight requests"))
-                    .unwrap()
+                build_response(
+                    http::StatusCode::SERVICE_UNAVAILABLE,
+                    Body::from("too many in-flight requests"),
+                )
             }
         }
     })

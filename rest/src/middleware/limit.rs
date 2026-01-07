@@ -1,3 +1,4 @@
+use crate::http::response::build_response;
 use crate::middleware::{Middleware, middleware};
 use hyper::Body;
 
@@ -10,25 +11,25 @@ pub fn max_bytes(limit: u64) -> Middleware {
                 && let Some(len) = len.to_str().ok().and_then(|s| s.parse::<usize>().ok())
                 && len > limit
             {
-                return http::Response::builder()
-                    .status(http::StatusCode::PAYLOAD_TOO_LARGE)
-                    .body(Body::from("request body too large"))
-                    .unwrap();
+                return build_response(
+                    http::StatusCode::PAYLOAD_TOO_LARGE,
+                    Body::from("request body too large"),
+                );
             }
             let bytes = match hyper::body::to_bytes(req.body_mut()).await {
                 Ok(b) => b,
                 Err(e) => {
-                    return http::Response::builder()
-                        .status(http::StatusCode::BAD_REQUEST)
-                        .body(Body::from(format!("read body error: {e}")))
-                        .unwrap();
+                    return build_response(
+                        http::StatusCode::BAD_REQUEST,
+                        Body::from(format!("read body error: {e}")),
+                    );
                 }
             };
             if bytes.len() > limit {
-                return http::Response::builder()
-                    .status(http::StatusCode::PAYLOAD_TOO_LARGE)
-                    .body(Body::from("request body too large"))
-                    .unwrap();
+                return build_response(
+                    http::StatusCode::PAYLOAD_TOO_LARGE,
+                    Body::from("request body too large"),
+                );
             }
             *req.body_mut() = Body::from(bytes);
             next.call(req).await

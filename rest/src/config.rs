@@ -275,7 +275,9 @@ impl RestConf {
             rate_limit: default_rate_limit(),
             concurrency_limit: default_concurrency_limit(),
         };
-        conf.validate().expect("RestConf::new validation failed");
+        if let Err(err) = conf.validate() {
+            panic!("RestConf::new validation failed: {err}");
+        }
         conf
     }
 }

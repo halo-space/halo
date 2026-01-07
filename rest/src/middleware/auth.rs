@@ -1,3 +1,4 @@
+use crate::http::response::build_response;
 use crate::middleware::{Middleware, middleware};
 use http::StatusCode;
 use hyper::Body;
@@ -146,10 +147,7 @@ fn unauthorized_response(
     callback: Option<UnauthorizedCallback>,
     req: &http::Request<Body>,
 ) -> http::Response<Body> {
-    let mut resp = http::Response::builder()
-        .status(StatusCode::UNAUTHORIZED)
-        .body(Body::from(err.to_string()))
-        .unwrap();
+    let mut resp = build_response(StatusCode::UNAUTHORIZED, Body::from(err.to_string()));
     if let Some(cb) = callback {
         cb(&mut resp, req, &err);
     }

@@ -30,7 +30,10 @@ impl Engine {
 
     /// Panic on invalid config (MustNew-style behavior).
     pub fn must_new(conf: RestConf) -> Self {
-        Self::new(conf).unwrap()
+        match Self::new(conf) {
+            Ok(engine) => engine,
+            Err(err) => panic!("invalid RestConf: {err}"),
+        }
     }
 
     /// Add multiple routes.

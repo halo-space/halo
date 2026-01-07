@@ -190,22 +190,20 @@ impl Flight {
     {
         let guard = self.result.lock();
         guard.as_ref().map(|res| match res {
-            FlightResult::Completed(res) => {
-                match res {
-                    Ok(v) => {
-                        let v = v.clone().downcast::<V>().unwrap_or_else(|_| {
-                            panic!("type mismatch when downcasting shared value")
-                        });
-                        Ok(Ok(v))
-                    }
-                    Err(e) => {
-                        let e = e.clone().downcast::<E>().unwrap_or_else(|_| {
-                            panic!("type mismatch when downcasting shared error")
-                        });
-                        Ok(Err(e))
-                    }
+            FlightResult::Completed(res) => match res {
+                Ok(v) => {
+                    let v = v.clone().downcast::<V>().map_err(|_| {
+                        ContextError::new_message("singleflight value type mismatch")
+                    })?;
+                    Ok(Ok(v))
                 }
-            }
+                Err(e) => {
+                    let e = e.clone().downcast::<E>().map_err(|_| {
+                        ContextError::new_message("singleflight error type mismatch")
+                    })?;
+                    Ok(Err(e))
+                }
+            },
         })
     }
 }
@@ -367,5 +365,32 @@ mod tests {
 
         let err = res.expect_err("should timeout");
         assert_eq!(err.kind(), CtxErr::DeadlineExceeded);
+    }
+
+    #[tokio::test]
+    async fn type_mismatch_returns_error() {
+        let group = SingleFlight::<&'static str>::new();
+        let g1 = group.clone();
+        let t1 = tokio::spawn(async move {
+            let ctx = Background();
+            g1.done(&ctx, "k", || async {
+                tokio::time::sleep(Duration::from_millis(50)).await;
+                Ok::<_, ()>(1u32)
+            })
+            .await
+        });
+
+        tokio::time::sleep(Duration::from_millis(10)).await;
+
+        let ctx = Background();
+        let res: Result<SharedResult<String, ()>, ContextError> = group
+            .done(&ctx, "k", || async { Ok::<_, ()>("hello".to_string()) })
+            .await;
+        assert!(res.is_err());
+        let err = res.unwrap_err();
+        assert_eq!(err.kind(), CtxErr::Any);
+        assert!(format!("{err}").contains("type mismatch"));
+
+        let _ = t1.await;
     }
 }

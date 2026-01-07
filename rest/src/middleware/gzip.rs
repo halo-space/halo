@@ -1,3 +1,4 @@
+use crate::http::response::build_response;
 use crate::middleware::{Middleware, middleware};
 use hyper::Body;
 use std::io::Write;
@@ -16,19 +17,19 @@ pub fn gzip() -> Middleware {
             let bytes = match hyper::body::to_bytes(req.body_mut()).await {
                 Ok(b) => b,
                 Err(e) => {
-                    return http::Response::builder()
-                        .status(http::StatusCode::BAD_REQUEST)
-                        .body(Body::from(format!("read body error: {e}")))
-                        .unwrap();
+                    return build_response(
+                        http::StatusCode::BAD_REQUEST,
+                        Body::from(format!("read body error: {e}")),
+                    );
                 }
             };
             let mut decoder = flate2::read::GzDecoder::new(bytes.as_ref());
             let mut decoded = Vec::new();
             if let Err(e) = std::io::Read::read_to_end(&mut decoder, &mut decoded) {
-                return http::Response::builder()
-                    .status(http::StatusCode::BAD_REQUEST)
-                    .body(Body::from(format!("gunzip error: {e}")))
-                    .unwrap();
+                return build_response(
+                    http::StatusCode::BAD_REQUEST,
+                    Body::from(format!("gunzip error: {e}")),
+                );
             }
             *req.body_mut() = Body::from(decoded);
             req.headers_mut().remove(http::header::CONTENT_ENCODING);
@@ -61,10 +62,10 @@ pub fn gzip() -> Middleware {
         let bytes = match hyper::body::to_bytes(body).await {
             Ok(b) => b,
             Err(e) => {
-                return http::Response::builder()
-                    .status(http::StatusCode::INTERNAL_SERVER_ERROR)
-                    .body(Body::from(format!("compress read body error: {e}")))
-                    .unwrap();
+                return build_response(
+                    http::StatusCode::INTERNAL_SERVER_ERROR,
+                    Body::from(format!("compress read body error: {e}")),
+                );
             }
         };
         if bytes.is_empty() {
@@ -73,18 +74,18 @@ pub fn gzip() -> Middleware {
 
         let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
         if let Err(e) = encoder.write_all(&bytes) {
-            return http::Response::builder()
-                .status(http::StatusCode::INTERNAL_SERVER_ERROR)
-                .body(Body::from(format!("gzip error: {e}")))
-                .unwrap();
+            return build_response(
+                http::StatusCode::INTERNAL_SERVER_ERROR,
+                Body::from(format!("gzip error: {e}")),
+            );
         }
         let compressed = match encoder.finish() {
             Ok(v) => v,
             Err(e) => {
-                return http::Response::builder()
-                    .status(http::StatusCode::INTERNAL_SERVER_ERROR)
-                    .body(Body::from(format!("gzip finish error: {e}")))
-                    .unwrap();
+                return build_response(
+                    http::StatusCode::INTERNAL_SERVER_ERROR,
+                    Body::from(format!("gzip finish error: {e}")),
+                );
             }
         };
 

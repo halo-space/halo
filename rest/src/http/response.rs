@@ -4,32 +4,42 @@ use serde::Serialize;
 
 /// 200 OK with custom body.
 pub fn ok(body: impl Into<Body>) -> Response<Body> {
-    Response::builder()
-        .status(StatusCode::OK)
-        .body(body.into())
-        .unwrap()
+    build_response(StatusCode::OK, body)
 }
 
 /// 200 OK with JSON body.
 pub fn ok_json<T: Serialize>(val: &T) -> anyhow::Result<Response<Body>> {
     let body = serde_json::to_vec(val)?;
-    Ok(Response::builder()
-        .status(StatusCode::OK)
-        .header(http::header::CONTENT_TYPE, "application/json")
-        .body(Body::from(body))?)
+    let mut builder = Response::builder();
+    builder = builder.status(StatusCode::OK);
+    builder = builder.header(http::header::CONTENT_TYPE, "application/json");
+    Ok(match builder.body(Body::from(body)) {
+        Ok(resp) => resp,
+        Err(err) => fallback_response(err),
+    })
 }
 
 /// 400 Bad Request with text body.
 pub fn bad_request(msg: impl Into<Body>) -> Response<Body> {
-    Response::builder()
-        .status(StatusCode::BAD_REQUEST)
-        .body(msg.into())
-        .unwrap()
+    build_response(StatusCode::BAD_REQUEST, msg)
 }
 
 /// Error response with custom status and message.
 pub fn error(status: StatusCode, msg: impl Into<Body>) -> Response<Body> {
-    Response::builder().status(status).body(msg.into()).unwrap()
+    build_response(status, msg)
+}
+
+pub(crate) fn build_response(status: StatusCode, body: impl Into<Body>) -> Response<Body> {
+    match Response::builder().status(status).body(body.into()) {
+        Ok(resp) => resp,
+        Err(err) => fallback_response(err),
+    }
+}
+
+fn fallback_response(err: http::Error) -> Response<Body> {
+    let mut resp = Response::new(Body::from(format!("build response failed: {err}")));
+    *resp.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+    resp
 }
 
 #[cfg(test)]

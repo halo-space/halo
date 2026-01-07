@@ -233,7 +233,10 @@ fn json_to_yaml(v: &Value) -> Result<serde_yaml::Value> {
             }
         }
         Value::String(s) => Y::String(s.clone()),
-        Value::Array(arr) => Y::Sequence(arr.iter().map(|e| json_to_yaml(e).unwrap()).collect()),
+        Value::Array(arr) => {
+            let seq: Result<Vec<_>> = arr.iter().map(json_to_yaml).collect();
+            Y::Sequence(seq?)
+        }
         Value::Object(map) => {
             let mut m = serde_yaml::Mapping::new();
             for (k, v) in map {

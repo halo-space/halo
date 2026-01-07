@@ -89,10 +89,7 @@ impl CancelState {
 
         // 挂载到父节点（锁父后推入）
         let weak_child = Arc::downgrade(&child);
-        let mut guard = parent
-            .inner
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let mut guard = parent.inner.lock().unwrap_or_else(|e| e.into_inner());
         let idx = guard.children.len();
         guard.children.push(weak_child);
         drop(guard);
@@ -125,7 +122,11 @@ impl CancelState {
     }
 
     pub fn cause(&self) -> Option<Arc<dyn std::error::Error + Send + Sync>> {
-        self.inner.lock().unwrap_or_else(|e| e.into_inner()).cause.clone()
+        self.inner
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .cause
+            .clone()
     }
 
     pub fn is_done(&self) -> bool {
@@ -347,7 +348,11 @@ impl CancelState {
         if idx < len_after {
             p_guard.children[idx] = last;
             if let Some(last_child) = p_guard.children[idx].upgrade() {
-                last_child.inner.lock().unwrap_or_else(|e| e.into_inner()).parent_idx = Some(idx);
+                last_child
+                    .inner
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .parent_idx = Some(idx);
             }
         }
         drop(p_guard);

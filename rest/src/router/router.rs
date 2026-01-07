@@ -1,4 +1,5 @@
 use crate::http::HandlerFunc;
+use crate::http::response::build_response;
 use crate::middleware::IntoHandler;
 use crate::router::{Route, with_prefix};
 use anyhow::Context;
@@ -138,8 +139,9 @@ impl Router {
 
         if let Some(allows) = self.allowed_methods(&path, &method) {
             let mut resp = self.not_allowed.clone().call(req).await;
-            resp.headers_mut()
-                .insert(http::header::ALLOW, allows.parse().unwrap());
+            if let Ok(value) = allows.parse() {
+                resp.headers_mut().insert(http::header::ALLOW, value);
+            }
             return resp;
         }
 
@@ -166,19 +168,13 @@ impl Router {
 
 fn default_not_found() -> HandlerFunc {
     IntoHandler::into_handler(|_req: http::Request<Body>| async {
-        Response::builder()
-            .status(StatusCode::NOT_FOUND)
-            .body(Body::empty())
-            .unwrap()
+        build_response(StatusCode::NOT_FOUND, Body::empty())
     })
 }
 
 fn default_not_allowed() -> HandlerFunc {
     IntoHandler::into_handler(|_req: http::Request<Body>| async {
-        Response::builder()
-            .status(StatusCode::METHOD_NOT_ALLOWED)
-            .body(Body::empty())
-            .unwrap()
+        build_response(StatusCode::METHOD_NOT_ALLOWED, Body::empty())
     })
 }
 
