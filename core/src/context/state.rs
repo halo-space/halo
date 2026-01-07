@@ -89,11 +89,18 @@ impl CancelState {
 
         // 挂载到父节点（锁父后推入）
         let weak_child = Arc::downgrade(&child);
-        let mut guard = parent.inner.lock().unwrap();
+        let mut guard = parent
+            .inner
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let idx = guard.children.len();
         guard.children.push(weak_child);
         drop(guard);
-        child.inner.lock().unwrap().parent_idx = Some(idx);
+        child
+            .inner
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .parent_idx = Some(idx);
 
         child
     }
@@ -103,7 +110,7 @@ impl CancelState {
     }
 
     pub fn err(&self) -> Option<ContextError> {
-        let guard = self.inner.lock().unwrap();
+        let guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         match guard.status {
             Status::Active => None,
             Status::Canceled => Some(ContextError::with_cause(
@@ -118,15 +125,15 @@ impl CancelState {
     }
 
     pub fn cause(&self) -> Option<Arc<dyn std::error::Error + Send + Sync>> {
-        self.inner.lock().unwrap().cause.clone()
+        self.inner.lock().unwrap_or_else(|e| e.into_inner()).cause.clone()
     }
 
     pub fn is_done(&self) -> bool {
-        self.inner.lock().unwrap().done
+        self.inner.lock().unwrap_or_else(|e| e.into_inner()).done
     }
 
     pub fn add_handle(&self) {
-        let guard = self.inner.lock().unwrap();
+        let guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         guard.handle_count.fetch_add(1, Ordering::Relaxed);
     }
 
@@ -134,7 +141,7 @@ impl CancelState {
         let mut current = self.clone();
         loop {
             let parent_opt = {
-                let mut guard = current.inner.lock().unwrap();
+                let mut guard = current.inner.lock().unwrap_or_else(|e| e.into_inner());
                 guard.handle_count.fetch_sub(1, Ordering::Relaxed);
                 guard.children.retain(|w| w.upgrade().is_some());
                 let has_handles = guard.handle_count.load(Ordering::Relaxed) > 0;
@@ -171,7 +178,7 @@ impl CancelState {
         // 尝试标记自身
         let cause_for_self = cause.clone();
         let (callbacks, children, notify_needed) = {
-            let mut guard = self.inner.lock().unwrap();
+            let mut guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
             if guard.done {
                 return;
             }
@@ -232,7 +239,7 @@ impl CancelState {
         let mut current = self.clone();
         loop {
             let parent_info = {
-                let mut guard = current.inner.lock().unwrap();
+                let mut guard = current.inner.lock().unwrap_or_else(|e| e.into_inner());
                 if !guard.done {
                     return;
                 }
@@ -279,7 +286,7 @@ impl CancelState {
         owner: Arc<CancelState>,
         cb: Box<dyn FnOnce() + Send + 'static>,
     ) -> StopFunc {
-        let mut guard = self.inner.lock().unwrap();
+        let mut guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         if guard.done {
             drop(guard);
             cb();
@@ -298,7 +305,7 @@ impl CancelState {
     }
 
     pub(crate) fn remove(&self, ptr: *mut CallbackNode) -> bool {
-        let mut guard = self.inner.lock().unwrap();
+        let mut guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         if guard.done {
             return false;
         }
@@ -328,33 +335,39 @@ impl CancelState {
         child: &Arc<CancelState>,
         idx: usize,
     ) -> bool {
-        let mut p_guard = parent.inner.lock().unwrap();
+        let mut p_guard = parent.inner.lock().unwrap_or_else(|e| e.into_inner());
         let len_before = p_guard.children.len();
         if idx >= len_before {
             return false;
         }
-        let last = p_guard.children.pop().unwrap();
+        let Some(last) = p_guard.children.pop() else {
+            return false;
+        };
         let len_after = p_guard.children.len();
         if idx < len_after {
             p_guard.children[idx] = last;
             if let Some(last_child) = p_guard.children[idx].upgrade() {
-                last_child.inner.lock().unwrap().parent_idx = Some(idx);
+                last_child.inner.lock().unwrap_or_else(|e| e.into_inner()).parent_idx = Some(idx);
             }
         }
         drop(p_guard);
-        child.inner.lock().unwrap().parent_idx = None;
+        child
+            .inner
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .parent_idx = None;
         true
     }
 
     pub fn wait(&self) {
-        let mut guard = self.inner.lock().unwrap();
+        let mut guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         while !guard.done {
-            guard = self.cvar.wait(guard).unwrap();
+            guard = self.cvar.wait(guard).unwrap_or_else(|e| e.into_inner());
         }
     }
 
     pub fn wait_timeout(&self, dur: Duration) -> bool {
-        let mut guard = self.inner.lock().unwrap();
+        let mut guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         let deadline = Instant::now() + dur;
         while !guard.done {
             let now = Instant::now();
@@ -362,7 +375,10 @@ impl CancelState {
                 return guard.done;
             }
             let remaining = deadline.saturating_duration_since(now);
-            let (g, timeout_res) = self.cvar.wait_timeout(guard, remaining).unwrap();
+            let (g, timeout_res) = self
+                .cvar
+                .wait_timeout(guard, remaining)
+                .unwrap_or_else(|e| e.into_inner());
             guard = g;
             if timeout_res.timed_out() {
                 return guard.done;
@@ -374,7 +390,7 @@ impl CancelState {
 
 impl Debug for CancelState {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let status = self.inner.lock().unwrap().status;
+        let status = self.inner.lock().unwrap_or_else(|e| e.into_inner()).status;
         f.debug_struct("CancelState")
             .field("status", &status)
             .finish()
