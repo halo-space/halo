@@ -75,18 +75,12 @@ where
             }
         }
 
-        // 首个调用者：启动执行任务，当前等待结果或 ctx 取消。
-        let flight_exec = flight.clone();
-        tokio::spawn(async move {
-            let _ = run_and_finish::<_, V, E>(flight_exec, make).await;
-        });
-
-        // 清理任务：等结果写入后再尝试移除 flight，避免泄漏。
+        // 首个调用者：启动执行任务（不中断执行者）。
         let flights_map = self.flights.clone();
         let key_cleanup = key.clone();
         let flight_cleanup = flight.clone();
         tokio::spawn(async move {
-            let _ = flight_cleanup.wait::<V, E>().await;
+            let _ = run_and_finish::<_, V, E>(flight_cleanup.clone(), make).await;
             let mut guard = flights_map.lock();
             if let Some(existing) = guard.get(&key_cleanup) {
                 if Arc::ptr_eq(existing, &flight_cleanup) {
