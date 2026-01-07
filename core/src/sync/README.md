@@ -1,7 +1,5 @@
 # sync
 
-同步能力集合，位于 `core/src` 下与 `context` 平级。
-
 ## singleflight
 
 ### 功能
@@ -86,6 +84,6 @@ async fn main() {
 - 若需要等待者超时/取消，可在调用方使用 `tokio::select!` 搭配自身超时，不影响主执行任务。
  
 ### 基准
-- `core/benches/singleflight_bench.rs`（criterion，n∈{1,2,4,8}，每次迭代新建 group，避免状态堆积）。
+- `core/benches/singleflight_bench.rs`（criterion，n∈{1,2,4,8}）。
 - 运行：`cargo bench -p halo-core --bench singleflight_bench`
 
