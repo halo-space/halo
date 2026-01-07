@@ -3,9 +3,7 @@
 
 use std::time::Duration;
 
-use halo_micro::core::context::{
-    AfterFunc, Background, Context, ContextAware, ContextError, WithTimeout,
-};
+use core::context::{AfterFunc, Background, Context, ContextAware, ContextError, WithTimeout};
 use tokio::time::sleep;
 
 #[tokio::main]
@@ -16,7 +14,7 @@ async fn main() {
     });
     drop(done_flag);
 
-    match ContextAware(ctx.clone(), a(ctx)).await {
+    match ContextAware(ctx.clone(), a(ctx.clone())).await {
         Ok(_) => println!("[main] A completed"),
         Err(e) => println!("[main] A failed: {e}"),
     }
