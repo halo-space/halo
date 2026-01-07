@@ -27,6 +27,7 @@ tokio-util = { version = "0.7", features = ["full"] }
 criterion = "0.5"
 num_cpus = "1"
 rustc_version_runtime = "0.1"
+parking_lot = "0.12"
 
 [[bench]]
 name = "cancel_bench"

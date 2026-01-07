@@ -3,8 +3,10 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::Arc;
 
+use crate::context::error::CANCELLED;
 use crate::context::{Context, ContextError};
-use tokio::sync::{Mutex, Notify};
+use parking_lot::Mutex;
+use tokio::sync::Notify;
 
 /// singleflight 管理器：并发相同 key 的调用合并为一次执行，共享结果。
 #[derive(Clone)]
@@ -24,29 +26,27 @@ where
     }
 
     /// 执行或复用某个 key 的异步任务，返回结果与是否复用（shared）。
-    /// `ctx` 仅用于等待方的取消/超时，不会中断正在执行的任务。
+    /// `ctx` 控制等待方超时/取消；首个执行者不中断，继续执行并写入结果。
     pub async fn done<Fut, V, E>(
         &self,
         ctx: &Context,
         key: K,
-        make: impl FnOnce() -> Fut,
+        make: impl FnOnce() -> Fut + Send + 'static,
     ) -> Result<SharedResult<V, E>, ContextError>
     where
         Fut: std::future::Future<Output = Result<V, E>> + Send + 'static,
         V: Any + Send + Sync + 'static,
         E: Any + Send + Sync + 'static,
     {
-        if let Some(err) = ctx.err() {
-            return Err(err);
-        }
-        let fut = self.inner_done(key, make);
-        tokio::select! {
-            res = fut => Ok(res),
-            _ = ctx.done_async() => Err(ctx.err().unwrap_or(crate::context::error::CANCELLED)),
-        }
+        self.inner_done(ctx, key, make).await
     }
 
-    async fn inner_done<Fut, V, E>(&self, key: K, make: impl FnOnce() -> Fut) -> SharedResult<V, E>
+    async fn inner_done<Fut, V, E>(
+        &self,
+        ctx: &Context,
+        key: K,
+        make: impl FnOnce() -> Fut + Send + 'static,
+    ) -> Result<SharedResult<V, E>, ContextError>
     where
         Fut: std::future::Future<Output = Result<V, E>> + Send + 'static,
         V: Any + Send + Sync + 'static,
@@ -54,7 +54,7 @@ where
     {
         // 原子化检查+插入，避免窗口期并发重复插入。
         let (flight, shared) = {
-            let mut guard = self.flights.lock().await;
+            let mut guard = self.flights.lock();
             if let Some(entry) = guard.get(&key) {
                 (entry.clone(), true)
             } else {
@@ -65,21 +65,44 @@ where
         };
 
         if shared {
-            let value = flight.wait::<V, E>().await;
-            return SharedResult { value, shared };
-        }
-
-        let value = run_and_finish(flight.clone(), make).await;
-
-        // 清理：只移除当前 flight，避免 race。
-        let mut guard = self.flights.lock().await;
-        if let Some(existing) = guard.get(&key) {
-            if Arc::ptr_eq(existing, &flight) {
-                guard.remove(&key);
+            let wait = flight.wait::<V, E>();
+            tokio::select! {
+                res = wait => {
+                    let val = res?;
+                    return Ok(SharedResult { value: val, shared });
+                }
+                _ = ctx.done_async() => return Err(ctx.err().unwrap_or(CANCELLED)),
             }
         }
 
-        SharedResult { value, shared }
+        // 首个调用者：启动执行任务，当前等待结果或 ctx 取消。
+        let flight_exec = flight.clone();
+        tokio::spawn(async move {
+            let _ = run_and_finish::<_, V, E>(flight_exec, make).await;
+        });
+
+        // 清理任务：等结果写入后再尝试移除 flight，避免泄漏。
+        let flights_map = self.flights.clone();
+        let key_cleanup = key.clone();
+        let flight_cleanup = flight.clone();
+        tokio::spawn(async move {
+            let _ = flight_cleanup.wait::<V, E>().await;
+            let mut guard = flights_map.lock();
+            if let Some(existing) = guard.get(&key_cleanup) {
+                if Arc::ptr_eq(existing, &flight_cleanup) {
+                    guard.remove(&key_cleanup);
+                }
+            }
+        });
+
+        let wait = flight.wait::<V, E>();
+        tokio::select! {
+            res = wait => {
+                let val = res?;
+                Ok(SharedResult { value: val, shared })
+            }
+            _ = ctx.done_async() => Err(ctx.err().unwrap_or(CANCELLED)),
+        }
     }
 
     /// DoChan：返回一个 oneshot 通道，结果就绪后发送。
@@ -106,7 +129,7 @@ where
 
     /// 主动遗忘某个 key，方便下次重新发起；不依赖 ctx。
     pub async fn forget(&self, key: &K) {
-        let mut guard = self.flights.lock().await;
+        let mut guard = self.flights.lock();
         guard.remove(key);
     }
 }
@@ -120,7 +143,11 @@ pub struct SharedResult<V, E> {
 
 struct Flight {
     notify: Notify,
-    result: Mutex<Option<Result<Arc<dyn Any + Send + Sync>, Arc<dyn Any + Send + Sync>>>>,
+    result: Mutex<Option<FlightResult>>,
+}
+
+enum FlightResult {
+    Completed(Result<Arc<dyn Any + Send + Sync>, Arc<dyn Any + Send + Sync>>),
 }
 
 impl Flight {
@@ -136,20 +163,20 @@ impl Flight {
         V: Any + Send + Sync + 'static,
         E: Any + Send + Sync + 'static,
     {
-        let mut guard = self.result.lock().await;
+        let mut guard = self.result.lock();
         if guard.is_none() {
             let erased: Result<Arc<dyn Any + Send + Sync>, Arc<dyn Any + Send + Sync>> = match value
             {
                 Ok(v) => Ok(v as Arc<dyn Any + Send + Sync>),
                 Err(e) => Err(e as Arc<dyn Any + Send + Sync>),
             };
-            *guard = Some(erased);
+            *guard = Some(FlightResult::Completed(erased));
         }
         drop(guard);
         self.notify.notify_waiters();
     }
 
-    async fn wait<V, E>(&self) -> Result<Arc<V>, Arc<E>>
+    async fn wait<V, E>(&self) -> Result<Result<Arc<V>, Arc<E>>, ContextError>
     where
         V: Any + Send + Sync + 'static,
         E: Any + Send + Sync + 'static,
@@ -162,26 +189,28 @@ impl Flight {
         }
     }
 
-    async fn try_get<V, E>(&self) -> Option<Result<Arc<V>, Arc<E>>>
+    async fn try_get<V, E>(&self) -> Option<Result<Result<Arc<V>, Arc<E>>, ContextError>>
     where
         V: Any + Send + Sync + 'static,
         E: Any + Send + Sync + 'static,
     {
-        let guard = self.result.lock().await;
+        let guard = self.result.lock();
         guard.as_ref().map(|res| match res {
-            Ok(v) => {
-                let v = v
-                    .clone()
-                    .downcast::<V>()
-                    .unwrap_or_else(|_| panic!("type mismatch when downcasting shared value"));
-                Ok(v)
-            }
-            Err(e) => {
-                let e = e
-                    .clone()
-                    .downcast::<E>()
-                    .unwrap_or_else(|_| panic!("type mismatch when downcasting shared error"));
-                Err(e)
+            FlightResult::Completed(res) => {
+                match res {
+                    Ok(v) => {
+                        let v = v.clone().downcast::<V>().unwrap_or_else(|_| {
+                            panic!("type mismatch when downcasting shared value")
+                        });
+                        Ok(Ok(v))
+                    }
+                    Err(e) => {
+                        let e = e.clone().downcast::<E>().unwrap_or_else(|_| {
+                            panic!("type mismatch when downcasting shared error")
+                        });
+                        Ok(Err(e))
+                    }
+                }
             }
         })
     }
@@ -196,8 +225,8 @@ where
     V: Any + Send + Sync + 'static,
     E: Any + Send + Sync + 'static,
 {
-    let output = make().await;
-    let mapped = output.map(Arc::new).map_err(Arc::new);
+    let res = make().await;
+    let mapped = res.map(Arc::new).map_err(Arc::new);
     flight.finish(mapped.clone()).await;
     mapped
 }
