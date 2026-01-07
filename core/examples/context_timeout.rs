@@ -4,7 +4,7 @@
 use std::thread;
 use std::time::Duration;
 
-use halo_micro::core::context::{AfterFunc, Background, Context, ContextError, WithTimeout};
+use core::context::{AfterFunc, Background, Context, ContextError, WithTimeout};
 
 fn main() {
     // 整体超时 5s。

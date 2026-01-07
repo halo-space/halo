@@ -5,7 +5,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
-use halo_core::context::{AfterFunc, Background, Context, ContextError, Error, WithTimeout};
+use core::context::{AfterFunc, Background, Context, ContextError, Error, WithTimeout};
 
 fn main() {
     let (ctx, cancel) = WithTimeout(Background(), Duration::from_secs(5));
