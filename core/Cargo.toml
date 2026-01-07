@@ -57,6 +57,10 @@ name = "without_cancel_bench"
 harness = false
 
 [[bench]]
+name = "singleflight_bench"
+harness = false
+
+[[bench]]
 name = "env_info"
 harness = false
 

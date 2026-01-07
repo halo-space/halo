@@ -1,5 +1,5 @@
+use core::context::{Background, ContextAware, WithTimeout};
 use criterion::{Criterion, criterion_group, criterion_main};
-use halo_core::context::{Background, ContextAware, WithTimeout};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Builder;
@@ -19,7 +19,7 @@ fn bench_contextaware(c: &mut Criterion) {
                 let (ctx, _cancel) = WithTimeout(Background(), Duration::from_millis(50));
                 let fut = async {
                     tokio::time::sleep(Duration::from_secs(1)).await;
-                    Ok::<(), halo_core::context::ContextError>(())
+                    Ok::<(), core::context::ContextError>(())
                 };
                 let _ = ContextAware(ctx, fut).await;
             })

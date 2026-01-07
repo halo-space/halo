@@ -1,5 +1,5 @@
+use core::context::{Background, WithCancel, WithoutCancel};
 use criterion::{Criterion, criterion_group, criterion_main};
-use halo_core::context::{Background, WithCancel, WithoutCancel};
 use std::thread;
 use std::time::Duration;
 

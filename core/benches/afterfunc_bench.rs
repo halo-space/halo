@@ -1,5 +1,5 @@
+use core::context::{AfterFunc, Background, WithCancel};
 use criterion::{Criterion, criterion_group, criterion_main};
-use halo_core::context::{AfterFunc, Background, WithCancel};
 use std::sync::Arc;
 use tokio::runtime::Builder;
 

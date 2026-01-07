@@ -3,6 +3,7 @@
 pub mod conf;
 pub mod context;
 pub mod service;
+pub mod sync;
 
 // 为示例与外部引用提供稳定别名，避免与 std::core 混淆。
 extern crate self as halo_core;

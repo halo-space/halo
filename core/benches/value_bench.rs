@@ -1,5 +1,5 @@
+use core::context::{Background, WithValue};
 use criterion::{Criterion, criterion_group, criterion_main};
-use halo_core::context::{Background, WithValue};
 
 const DEPTHS: &[usize] = &[1, 4, 16, 64, 256];
 
