@@ -1,11 +1,22 @@
-//! Redis 配置，参考 go-zero `core/stores/redis/conf.go`。
-//! 仅定义配置与校验逻辑，实际客户端连接可按需扩展。
-
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use thiserror::Error;
 
-/// Redis 部署类型。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+fn default_non_block() -> bool {
+    true
+}
+
+fn default_ping_timeout() -> Duration {
+    Duration::from_secs(1)
+}
+
+fn default_type_str() -> String {
+    "node".to_string()
+}
+
+/// Redis 拓扑类型。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum RedisType {
     Node,
     Cluster,
@@ -13,258 +24,115 @@ pub enum RedisType {
 
 impl Default for RedisType {
     fn default() -> Self {
-        RedisType::Node
+        Self::Node
     }
 }
 
-/// Redis 基础配置。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RedisConfig {
+/// Redis 连接配置，对齐 go-zero 的 `redis.Conf`。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Conf {
+    /// 节点地址，单节点为 `host:port`，集群用逗号分隔。
     pub host: String,
-    pub kind: RedisType,
+    /// 拓扑类型：`node` 或 `cluster`，默认 `node`。
+    ///
+    /// 上游直接使用字符串传入（兼容 go-zero 原配置字段名 `type`），在构建客户端时解析。
+    #[serde(rename = "type", default = "default_type_str")]
+    pub kind: String,
+    /// 用户名，可选。
+    #[serde(default)]
     pub user: Option<String>,
+    /// 密码，可选。
+    #[serde(default)]
     pub pass: Option<String>,
+    /// 是否启用 TLS，对应 `rediss://`。
+    #[serde(default)]
     pub tls: bool,
-    /// 是否启用 RESP3 协议（默认 RESP2）。当前 redis-rs 1.x 未公开通用配置入口，启用将返回错误。
-    pub resp3: bool,
-    /// go-zero 默认 true。
+    /// 是否非阻塞创建客户端：`true` 时跳过启动时 PING。
+    #[serde(default = "default_non_block")]
     pub non_block: bool,
-    /// go-zero 默认 1s。
+    /// PING 超时时间，默认 1s。
+    #[serde(default = "default_ping_timeout", with = "humantime_serde")]
     pub ping_timeout: Duration,
-    /// 连接超时，用于 pool 和 sync connect。
-    pub connect_timeout: Option<Duration>,
-    /// 命令超时占位（未使用），后续可用于自定义调用。
-    pub command_timeout: Option<Duration>,
 }
 
-impl Default for RedisConfig {
+impl Default for Conf {
     fn default() -> Self {
         Self {
             host: String::new(),
-            kind: RedisType::Node,
+            kind: default_type_str(),
             user: None,
             pass: None,
             tls: false,
-            resp3: false,
-            non_block: true,
-            ping_timeout: Duration::from_secs(1),
-            connect_timeout: None,
-            command_timeout: None,
+            non_block: default_non_block(),
+            ping_timeout: default_ping_timeout(),
         }
     }
 }
 
-pub enum ClientKind {
-    Single(redis::Client),
-    Cluster(redis::cluster::ClusterClient),
+/// 配置错误。
+#[derive(Debug, Clone, Error, PartialEq, Eq)]
+pub enum ConfigError {
+    #[error("redis host cannot be empty")]
+    EmptyHost,
+    #[error("redis host list is empty after parsing")]
+    NoValidHost,
+    #[error("invalid redis type: {0}, expect node|cluster")]
+    InvalidType(String),
 }
 
-impl RedisConfig {
-    /// 校验基础配置，确保 host 非空。
-    pub fn validate(&self) -> Result<(), ConfigError> {
-        if self.host.is_empty() {
+impl Conf {
+    fn parse_type(&self) -> Result<RedisType, ConfigError> {
+        match self.kind.to_ascii_lowercase().as_str() {
+            "node" => Ok(RedisType::Node),
+            "cluster" => Ok(RedisType::Cluster),
+            other => Err(ConfigError::InvalidType(other.to_string())),
+        }
+    }
+
+    /// 将配置转换为可供驱动使用的 URL 列表。
+    ///
+    /// - 当 `host` 已含协议（`redis://` / `rediss://`）时原样返回。
+    /// - 否则根据 `tls/user/pass` 拼接。
+    /// - 集群场景按逗号分隔多个地址。
+    pub fn to_urls(&self) -> Result<Vec<String>, ConfigError> {
+        if self.host.trim().is_empty() {
             return Err(ConfigError::EmptyHost);
         }
-        Ok(())
-    }
 
-    /// 构造 redis 客户端（不建立连接）。
-    pub fn new_client(&self) -> Result<ClientKind, ConfigError> {
-        self.validate()?;
-        match self.kind {
-            RedisType::Node => {
-                if self.resp3 {
-                    return Err(ConfigError::UnsupportedResp3);
-                }
-                let url = build_redis_url(
-                    &self.host,
-                    self.user.as_deref(),
-                    self.pass.as_deref(),
-                    self.tls,
-                );
-                let client = redis::Client::open(url).map_err(ConfigError::from)?;
-                Ok(ClientKind::Single(client))
+        let auth_prefix = match (&self.user, &self.pass) {
+            (Some(u), Some(p)) => format!("{u}:{p}@"),
+            (Some(u), None) => format!("{u}@"),
+            (None, Some(p)) => format!(":{p}@"),
+            (None, None) => String::new(),
+        };
+
+        let scheme = if self.tls { "rediss" } else { "redis" };
+        let mut urls = Vec::new();
+        for raw in self.host.split(',') {
+            let addr = raw.trim();
+            if addr.is_empty() {
+                continue;
             }
-            RedisType::Cluster => {
-                if self.resp3 {
-                    return Err(ConfigError::UnsupportedResp3);
-                }
-                let nodes = build_cluster_urls(
-                    &self.host,
-                    self.user.as_deref(),
-                    self.pass.as_deref(),
-                    self.tls,
-                )?;
-                let client =
-                    redis::cluster::ClusterClient::new(nodes).map_err(ConfigError::from)?;
-                Ok(ClientKind::Cluster(client))
-            }
+            let url = if addr.contains("://") {
+                addr.to_string()
+            } else {
+                format!("{scheme}://{auth_prefix}{addr}")
+            };
+            urls.push(url);
         }
-    }
 
-    /// 获取异步多路复用连接（单节点）。redis 官方文档指出 async 场景通常无需连接池。
-    pub async fn multiplexed_connection(
-        &self,
-    ) -> Result<redis::aio::MultiplexedConnection, ConfigError> {
-        match self.new_client()? {
-            ClientKind::Single(client) => client
-                .get_multiplexed_async_connection()
-                .await
-                .map_err(ConfigError::from),
-            ClientKind::Cluster(_) => Err(ConfigError::UnsupportedClusterConnection),
+        if urls.is_empty() {
+            return Err(ConfigError::NoValidHost);
         }
+
+        Ok(urls)
     }
 
-    /// 同步获取连接（单节点）；Cluster 返回 UnsupportedClusterConnection。
-    pub fn get_connection(&self) -> Result<redis::Connection, ConfigError> {
-        match self.new_client()? {
-            ClientKind::Single(client) => {
-                if let Some(timeout) = self.connect_timeout {
-                    client
-                        .get_connection_with_timeout(timeout)
-                        .map_err(ConfigError::from)
-                } else {
-                    client.get_connection().map_err(ConfigError::from)
-                }
-            }
-            ClientKind::Cluster(_) => Err(ConfigError::UnsupportedClusterConnection),
-        }
+    /// 解析拓扑类型（node/cluster）。
+    pub fn redis_type(&self) -> Result<RedisType, ConfigError> {
+        self.parse_type()
     }
-
-    /// 构建异步 ConnectionManager（单节点）。
-    pub async fn connection_manager(&self) -> Result<redis::aio::ConnectionManager, ConfigError> {
-        match self.new_client()? {
-            ClientKind::Single(client) => {
-                let manager = redis::aio::ConnectionManager::new(client)
-                    .await
-                    .map_err(ConfigError::from)?;
-                Ok(manager)
-            }
-            ClientKind::Cluster(_) => Err(ConfigError::UnsupportedClusterConnection),
-        }
-    }
-
-    /// 构建同步 r2d2 Pool（单节点）。
-    pub fn pool(&self, max_size: Option<u32>) -> Result<r2d2::Pool<redis::Client>, ConfigError> {
-        match self.new_client()? {
-            ClientKind::Single(client) => {
-                let mut builder = r2d2::Pool::builder();
-                if let Some(sz) = max_size {
-                    builder = builder.max_size(sz);
-                }
-                if let Some(timeout) = self.connect_timeout {
-                    builder = builder.connection_timeout(timeout);
-                }
-                builder.build(client).map_err(ConfigError::from)
-            }
-            ClientKind::Cluster(_) => Err(ConfigError::UnsupportedClusterPool),
-        }
-    }
-}
-
-/// 携带 key 的 Redis 配置。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RedisKeyConfig {
-    pub config: RedisConfig,
-    pub key: String,
-}
-
-impl RedisKeyConfig {
-    pub fn new(config: RedisConfig, key: impl Into<String>) -> Self {
-        Self {
-            config,
-            key: key.into(),
-        }
-    }
-
-    pub fn validate(&self) -> Result<(), ConfigError> {
-        self.config.validate()?;
-        if self.key.is_empty() {
-            return Err(ConfigError::EmptyKey);
-        }
-        Ok(())
-    }
-}
-
-/// 配置校验错误。
-#[derive(Debug, Error)]
-pub enum ConfigError {
-    #[error("empty redis host")]
-    EmptyHost,
-    #[error("empty redis key")]
-    EmptyKey,
-    #[error("redis client error: {0}")]
-    Client(#[from] redis::RedisError),
-    #[error("resp3 is not configurable with current redis-rs version")]
-    UnsupportedResp3,
-    #[error("cluster sync connection/manager not supported yet")]
-    UnsupportedClusterConnection,
-    #[error("cluster r2d2 pool not supported yet")]
-    UnsupportedClusterPool,
-    #[error("r2d2 pool error: {0}")]
-    Pool(#[from] r2d2::Error),
-}
-
-impl PartialEq for ConfigError {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (ConfigError::EmptyHost, ConfigError::EmptyHost)
-            | (ConfigError::EmptyKey, ConfigError::EmptyKey)
-            | (
-                ConfigError::UnsupportedClusterConnection,
-                ConfigError::UnsupportedClusterConnection,
-            )
-            | (ConfigError::UnsupportedClusterPool, ConfigError::UnsupportedClusterPool) => true,
-            (ConfigError::Client(a), ConfigError::Client(b)) => a.to_string() == b.to_string(),
-            (ConfigError::Pool(a), ConfigError::Pool(b)) => a.to_string() == b.to_string(),
-            _ => false,
-        }
-    }
-}
-
-fn build_redis_url(host: &str, user: Option<&str>, pass: Option<&str>, tls: bool) -> String {
-    let mut url = host.trim().to_string();
-    let scheme = if tls { "rediss://" } else { "redis://" };
-    if !url.starts_with("redis://") && !url.starts_with("rediss://") {
-        url = format!("{scheme}{url}");
-    }
-    if user.is_none() && pass.is_none() {
-        return url;
-    }
-    // inject credentials
-    let credentials = match (user, pass) {
-        (Some(u), Some(p)) => format!("{u}:{p}@"),
-        (Some(u), None) => format!("{u}@"),
-        (None, Some(p)) => format!(":{p}@"),
-        (None, None) => String::new(),
-    };
-    if let Some(rest) = url.strip_prefix("redis://") {
-        format!("redis://{credentials}{rest}")
-    } else if let Some(rest) = url.strip_prefix("rediss://") {
-        format!("rediss://{credentials}{rest}")
-    } else {
-        url
-    }
-}
-
-fn build_cluster_urls(
-    hosts: &str,
-    user: Option<&str>,
-    pass: Option<&str>,
-    tls: bool,
-) -> Result<Vec<String>, ConfigError> {
-    let mut urls = Vec::new();
-    for host in hosts.split(',') {
-        let trimmed = host.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        urls.push(build_redis_url(trimmed, user, pass, tls));
-    }
-    if urls.is_empty() {
-        return Err(ConfigError::EmptyHost);
-    }
-    Ok(urls)
 }
 
 #[cfg(test)]
@@ -272,72 +140,88 @@ mod tests {
     use super::*;
 
     #[test]
-    fn validate_ok() {
-        let cfg = RedisConfig {
+    fn default_values_should_match_go_zero() {
+        let cfg = Conf::default();
+        assert!(cfg.host.is_empty());
+        assert_eq!(cfg.kind, "node");
+        assert!(cfg.non_block);
+        assert_eq!(cfg.ping_timeout, Duration::from_secs(1));
+        assert!(!cfg.tls);
+    }
+
+    #[test]
+    fn redis_type_should_parse_case_insensitive() {
+        let mut cfg = Conf {
             host: "127.0.0.1:6379".into(),
+            kind: "Cluster".into(),
             ..Default::default()
         };
-        assert!(cfg.validate().is_ok());
+        assert_eq!(cfg.redis_type().unwrap(), RedisType::Cluster);
 
-        let key_cfg = RedisKeyConfig::new(cfg, "k");
-        assert!(key_cfg.validate().is_ok());
+        cfg.kind = "NODE".into();
+        assert_eq!(cfg.redis_type().unwrap(), RedisType::Node);
     }
 
     #[test]
-    fn validate_empty_host() {
-        let cfg = RedisConfig::default();
-        let err = cfg.validate().expect_err("should fail");
-        assert_eq!(err, ConfigError::EmptyHost);
-    }
-
-    #[test]
-    fn validate_empty_key() {
-        let cfg = RedisConfig {
+    fn redis_type_should_reject_invalid() {
+        let cfg = Conf {
             host: "127.0.0.1:6379".into(),
+            kind: "sharded".into(),
             ..Default::default()
         };
-        let key_cfg = RedisKeyConfig::new(cfg, "");
-        let err = key_cfg.validate().expect_err("should fail");
-        assert_eq!(err, ConfigError::EmptyKey);
+        let err = cfg.redis_type().unwrap_err();
+        assert!(matches!(err, ConfigError::InvalidType(t) if t == "sharded"));
     }
 
     #[test]
-    fn build_client_url_should_inject_scheme_and_creds() {
-        let cfg = RedisConfig {
+    fn to_urls_should_infer_scheme_and_auth() {
+        let cfg = Conf {
             host: "127.0.0.1:6379".into(),
             user: Some("u".into()),
             pass: Some("p".into()),
+            tls: false,
             ..Default::default()
         };
-        let url = build_redis_url(&cfg.host, cfg.user.as_deref(), cfg.pass.as_deref(), cfg.tls);
-        assert!(url.starts_with("redis://u:p@127.0.0.1:6379"));
-        // constructing client should not connect, just parse URL
-        let client = cfg.new_client().expect("client build");
-        matches!(client, ClientKind::Single(_));
+        let urls = cfg.to_urls().unwrap();
+        assert_eq!(urls, vec!["redis://u:p@127.0.0.1:6379"]);
     }
 
     #[test]
-    fn cluster_supported_builds_client() {
-        let cfg = RedisConfig {
-            host: "127.0.0.1:7001,127.0.0.1:7002".into(),
-            kind: RedisType::Cluster,
-            ..Default::default()
-        };
-        let client = cfg.new_client().expect("cluster client");
-        matches!(client, ClientKind::Cluster(_));
-        // pool unsupported for cluster
-        let err = cfg.pool(None).expect_err("cluster pool unsupported");
-        assert_eq!(err, ConfigError::UnsupportedClusterPool);
-    }
-
-    #[test]
-    fn rediss_scheme_for_tls() {
-        let cfg = RedisConfig {
+    fn to_urls_should_respect_tls() {
+        let cfg = Conf {
             host: "127.0.0.1:6380".into(),
             tls: true,
             ..Default::default()
         };
-        let url = build_redis_url(&cfg.host, None, None, cfg.tls);
-        assert!(url.starts_with("rediss://"));
+        let urls = cfg.to_urls().unwrap();
+        assert_eq!(urls, vec!["rediss://127.0.0.1:6380"]);
+    }
+
+    #[test]
+    fn to_urls_should_split_cluster_hosts() {
+        let cfg = Conf {
+            host: "10.0.0.1:6379,10.0.0.2:6379".into(),
+            kind: "cluster".into(),
+            ..Default::default()
+        };
+        let urls = cfg.to_urls().unwrap();
+        assert_eq!(urls, vec!["redis://10.0.0.1:6379", "redis://10.0.0.2:6379"]);
+    }
+
+    #[test]
+    fn to_urls_should_error_on_empty_host() {
+        let cfg = Conf::default();
+        let err = cfg.to_urls().unwrap_err();
+        assert!(matches!(err, ConfigError::EmptyHost));
+    }
+
+    #[test]
+    fn to_urls_should_skip_empty_parts() {
+        let cfg = Conf {
+            host: " , redis://127.0.0.1:6379 , ".into(),
+            ..Default::default()
+        };
+        let urls = cfg.to_urls().unwrap();
+        assert_eq!(urls, vec!["redis://127.0.0.1:6379"]);
     }
 }
