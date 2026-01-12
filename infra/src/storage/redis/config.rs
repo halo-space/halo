@@ -28,7 +28,7 @@ impl Default for RedisType {
     }
 }
 
-/// Redis 连接配置，对齐 go-zero 的 `redis.Conf`。
+/// Redis 连接配置。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Conf {
@@ -36,7 +36,7 @@ pub struct Conf {
     pub host: String,
     /// 拓扑类型：`node` 或 `cluster`，默认 `node`。
     ///
-    /// 上游直接使用字符串传入（兼容 go-zero 原配置字段名 `type`），在构建客户端时解析。
+    /// 上游直接使用字符串传入（字段名使用 `type`），在构建客户端时解析。
     #[serde(rename = "type", default = "default_type_str")]
     pub kind: String,
     /// 用户名，可选。
@@ -140,7 +140,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_values_should_match_go_zero() {
+    fn default_values_should_match_expected_defaults() {
         let cfg = Conf::default();
         assert!(cfg.host.is_empty());
         assert_eq!(cfg.kind, "node");

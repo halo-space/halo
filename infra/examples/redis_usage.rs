@@ -2,7 +2,7 @@ use infra::storage::redis::{Conf, new_redis};
 use redis::AsyncCommands;
 
 #[tokio::main]
-async fn main() -> redis::RedisResult<()> {
+async fn main() -> anyhow::Result<()> {
     // 构造配置：单节点示例；如需集群，kind 设置为 "cluster"，host 用逗号分隔多个节点。
     let conf = Conf {
         host: "127.0.0.1:6379".into(),
@@ -15,7 +15,7 @@ async fn main() -> redis::RedisResult<()> {
     let mut conn = new_redis(conf).await?;
 
     // 基础命令
-    conn.set("halo:demo:key", "hello").await?;
+    let _: () = conn.set("halo:demo:key", "hello").await?;
     let v: String = conn.get("halo:demo:key").await?;
     println!("get halo:demo:key => {v}");
 

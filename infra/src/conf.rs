@@ -1,7 +1,6 @@
-//! 配置加载工具（对齐 go-zero 的 `core/conf`）。
+//! 配置加载工具。
 //!
 //! 目标：
-//! - 对齐 go-zero 的调用习惯：`conf::must_load(path, &mut cfg)`；
 //! - 支持 YAML/JSON/TOML（按文件扩展名自动识别）；
 //! - 支持环境变量展开（类似 Go 的 `os.ExpandEnv`：`${VAR}` / `$VAR`）；
 //! - 同时提供非 panic 的 `load_into/load` 系列 API。
@@ -33,7 +32,7 @@ impl Format {
     }
 }
 
-/// 加载选项（对齐 go-zero 的 Option 思路）。
+/// 加载选项。
 #[derive(Debug, Clone)]
 pub struct Options {
     /// 是否展开环境变量（默认 true）。
@@ -75,7 +74,7 @@ pub fn load_into_with<T: DeserializeOwned>(
     load_from_str(fmt, &raw, cfg).map_err(|e| anyhow::anyhow!("load {}: {e}", path.display()))
 }
 
-/// 从 bytes 加载（主要对齐 go-zero 的 `LoadFromBytes`）。
+/// 从 bytes 加载。
 pub fn load_from_bytes_into<T: DeserializeOwned>(
     fmt: Format,
     bytes: &[u8],
@@ -103,7 +102,7 @@ fn load_from_str<T: DeserializeOwned>(fmt: Format, s: &str, cfg: &mut T) -> anyh
     Ok(())
 }
 
-/// 对齐 go-zero：加载失败直接 panic（用于快速失败的启动场景）。
+/// 加载失败直接 panic（用于快速失败的启动场景）。
 pub fn must_load<T: DeserializeOwned>(path: impl AsRef<Path>, cfg: &mut T) {
     if let Err(e) = load_into(path.as_ref(), cfg) {
         panic!("conf.MustLoad failed: {e}");

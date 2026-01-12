@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use redis::RedisError as DriverError;
 use redis::aio::MultiplexedConnection;
 use redis::cluster::ClusterClient;

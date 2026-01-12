@@ -1,8 +1,8 @@
-//! 基础服务配置（与 go-zero 的 `service.ServiceConf` 对齐的占位实现）。
+//! 基础服务配置（占位实现，可逐步演进）。
 
 use serde::{Deserialize, Serialize};
 
-/// 与 go-zero `ServiceConf.Mode` 对齐：`dev|test|rt|pre|pro`，默认 `pro`。
+/// 运行模式：`dev|test|rt|pre|pro`，默认 `pro`。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Mode {
@@ -25,7 +25,7 @@ pub struct LogConf {
     pub file: Option<String>,
 }
 
-/// Deprecated: please use DevServer（与 go-zero 注释一致）。
+/// Deprecated: please use DevServer.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PrometheusConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -69,7 +69,7 @@ pub struct ShutdownConf {
     pub timeout_ms: Option<i64>,
 }
 
-/// 与 go-zero `service.ServiceConf` 对齐的基础服务配置（应位于 core/service）。
+/// 基础服务配置。
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ServiceConf {
     /// 服务名称（Go 版无默认；这里给 default 以便最小配置也能跑起来）。
